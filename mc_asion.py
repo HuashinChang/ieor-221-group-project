@@ -84,7 +84,7 @@ class MCPricer:
         geom_ana = self._analytic_geom_asian()
 
         npv = arith_mean - est_corr * (geom_mean - geom_ana)
-        std = torch.std(arith_mean / self.n_paths) * torch.sqrt(1 - est_corr**2)
+        std = torch.std(disc_a_payoffs, correction=1) * torch.sqrt((1 - est_corr**2) / self.n_paths)
         return npv.item(), std.item()
 
 
