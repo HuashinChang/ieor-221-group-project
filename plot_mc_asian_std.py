@@ -4,7 +4,7 @@ import torch
 import math
 from matplotlib.figure import Figure
 
-from mc_asion import MCPricer
+from mc_asian import MCPricer
 
 
 TOTAL_PATH_COUNTS = (2**10, 2**12, 2**14, 2**16, 2**18, 2**20)
@@ -18,7 +18,7 @@ VARIANCE_REDUCTION = (
     ("Antithetic + geometric Asian control", True, "geom_asian"),
 )
 OUTPUT_DIR = Path(__file__).with_name("mc_std_plots")
-
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 def plot_variance_reduction(mean_ratios, output_dir):
     figure = Figure(figsize=(12, 6.5), layout="constrained")
