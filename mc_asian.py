@@ -192,7 +192,7 @@ def main():
         f"Simulation info: total paths={arg.n_paths:,}, "
         f"seed={arg.seed}, device={mc_spec['device']}"
     )
-    print("Adjust with --n-paths, --seed, --device (cpu/cuda); see --help.\n")
+    print("Adjust with --n-paths, --seed, --device ('cpu'/'cuda'); see --help.\n")
 
     pricer = MCPricer(**mkt_cond, **mc_spec)
 
