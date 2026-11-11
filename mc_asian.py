@@ -19,9 +19,9 @@ class MCPricer:
     dividend: float
     vol: float
     rate: float
-    n_samples: int = 2**23
+    n_samples: int = 2**20
     seed: int | None = None
-    device: torch.device = torch.device("cuda")
+    device: torch.device = torch.device("cpu")
     day_count: int = 250
     verbose: bool = False
 
@@ -63,16 +63,17 @@ class MCPricer:
         else:
             ctrl_sampled = torch.zeros_like(stock_prices)
             ctrl_ana_val = 0
+ 
+        if antithetic:
+            half = int(self.n_samples)
+            disc_a_payoffs = (disc_a_payoffs[:half] + disc_a_payoffs[half:]) / 2
+            ctrl_sampled = (ctrl_sampled[:half] + ctrl_sampled[half:]) / 2
 
         payoffs = self._apply_ctrl_var(
                 orig_payoffs=disc_a_payoffs,
                 ctrl_sampled=ctrl_sampled,
                 ctrl_ana_val=ctrl_ana_val
-            ) 
-
-        if antithetic:
-            half = int(self.n_samples)
-            payoffs = (payoffs[:half] + payoffs[half:]) / 2
+            )
         
         npv = torch.mean(payoffs)
         std = torch.std(payoffs, correction=1) / math.sqrt(self.n_samples)
@@ -151,8 +152,8 @@ if __name__ == "__main__":
     }
     mc_spec = {
         'seed': 0,
-        'device': torch.device('cuda'),
-        'n_samples': 2**24
+        'device': torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+        'n_samples': 2**20
     }
     pricer = MCPricer(**mkt_cond, **mc_spec)
 
