@@ -6,9 +6,16 @@ from matplotlib.figure import Figure
 from mc_asion import MCPricer
 
 
-PATH_COUNTS = (2**12, 2**14, 2**16, 2**18, 2**20)
+SAMPLE_COUNTS = (2**12, 2**14, 2**16, 2**18, 2**20)
 STRIKES = {"ITM": 90, "ATM": 100, "OTM": 110}
-POLICIES = ("plain", "antithetic", "ctrl_var")
+VARIANCE_REDUCTION = (
+    ("Plain", False, None),
+    ("Antithetic", True, None),
+    ("Stock control", False, "stock_prices"),
+    ("Geometric Asian control", False, "geom_asian"),
+    ("Antithetic + stock control", True, "stock_prices"),
+    ("Antithetic + geometric Asian control", True, "geom_asian"),
+)
 OUTPUT_DIR = Path(__file__).with_name("mc_std_plots")
 
 
@@ -21,21 +28,21 @@ def main(output_dir=OUTPUT_DIR):
     output_dir.mkdir(parents=True, exist_ok=True)
 
     for moneyness, strike in STRIKES.items():
-        figure = Figure(figsize=(7, 4.5), layout="constrained")
+        figure = Figure(figsize=(8, 5.5), layout="constrained")
         ax = figure.subplots()
-        for policy in POLICIES:
+        for policy, antithetic, ctrl_var in VARIANCE_REDUCTION:
             stds = []
-            for total_paths in PATH_COUNTS:
-                # Compare at equal simulated path counts, including both paths per pair.
-                pricer.n_paths = (
-                    total_paths // 2 if policy == "antithetic" else total_paths
+            for n_samples in SAMPLE_COUNTS:
+                # Each antithetic pair is one independent sample (two paths).
+                pricer.n_samples = n_samples
+                _, mc_std = pricer.run_mc(
+                    strike, dtm, antithetic=antithetic, ctrl_var=ctrl_var
                 )
-                _, mc_std = pricer.run_mc(strike, dtm, policy)
                 stds.append(mc_std)
-            ax.loglog(PATH_COUNTS, stds, marker="o", label=policy)
+            ax.loglog(SAMPLE_COUNTS, stds, marker="o", label=policy)
 
         ax.set_title(f"{moneyness} Asian call (strike {strike})")
-        ax.set_xlabel("Total simulated paths")
+        ax.set_xlabel("Independent samples (N; antithetic uses 2N paths)")
         ax.set_ylabel("MC price standard error")
         ax.grid(True, which="both", alpha=0.25)
         ax.legend()
