@@ -13,7 +13,7 @@ class MCPricer:
     The underlying stock dynamic is BSM, 
     and the average is computed with the daily closing price.
 
-    ``n_samples`` referes to number of *independent* samples
+    ``n_samples`` referes to number of *independent* samples.
     """
     stock_spot: float
     dividend: float
@@ -36,7 +36,23 @@ class MCPricer:
         antithetic: bool = False,
         ctrl_var: Literal['stock_prices', 'geom_asian'] | None = None,
     ) -> tuple[float, float]:
+        """Estimate a fixed-strike arithmetic Asian call price 
+        by Monte Carlo with different variance reduction methods.
 
+        Args:
+            strike: Option strike price.
+            dtm: Number of trading days until maturity.
+            antithetic: Whether to simulate paired paths with opposite normal
+                shocks. If True, simulate ``2 * self.n_samples`` paths.\n
+                Defaults to False.
+            ctrl_var: Control variate used to reduce sampling variance.\n
+                ``'stock_prices'`` uses the stock price.\n
+                ``'geom_asian'`` uses the geometric Asian call payoff.\n 
+                Defaults to None.
+
+        Returns:
+            A tuple ``(npv, std)`` of Python floats. 
+        """
         N = int(self.n_samples) * 2 if antithetic else int(self.n_samples)
         stock_prices = self.stock_spot * torch.ones(N, device=self.device)
         price_sums = log_price_sums = torch.zeros_like(stock_prices)
@@ -137,6 +153,14 @@ class MCPricer:
             est_corr = torch.sum((orig_payoffs - orig_mean) * (ctrl_sampled - ctrl_mean)) / ctrl_m2
 
         return orig_payoffs - est_corr * (ctrl_sampled - ctrl_ana_val)
+
+def bsm_european_call(stock, dividend, vol, ttm, rate, strike):
+    d1 = (math.log(stock / strike) + ttm * (rate - dividend + 0.5 * vol**2)) / (vol * math.sqrt(ttm))
+    d2 = d1 - vol * math.sqrt(ttm)
+    return  (
+        stock * math.exp(-dividend * ttm) * norm.cdf(d1)
+     - strike * math.exp(-rate * ttm) * norm.cdf(d2)
+    )
         
 
 if __name__ == "__main__":
@@ -181,5 +205,10 @@ if __name__ == "__main__":
     print("\nRunning anthithetic with control variate (geomtric Asian) MC...")
     npv, std = pricer.run_mc(**contract, antithetic=True, ctrl_var='geom_asian')
     print(f"npv is {npv:.4f} with mc std {std:.4f}")
-            
-            
+
+    vanilla_price = bsm_european_call(
+        **mkt_cond, 
+        strike=contract['strike'], 
+        ttm=contract['dtm']/pricer.day_count
+        )
+    print(f"The vanilla call with the same strike and maturity has the price {vanilla_price}.")
