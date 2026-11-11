@@ -13,16 +13,17 @@ class MCPricer:
     The underlying stock dynamic is BSM, 
     and the average is computed with the daily closing price.
 
-    ``n_paths`` referes to number of independent sampled paths
+    ``n_samples`` referes to number of *independent* samples
     """
     stock_spot: float
     dividend: float
     vol: float
     rate: float
-    n_paths: int = 2**23
+    n_samples: int = 2**23
     seed: int | None = None
     device: torch.device = torch.device("cuda")
     day_count: int = 250
+    verbose: bool = False
 
     def _make_gen(self) -> torch.Generator:
         seed = self.seed if self.seed is not None else randint(0, 2**63 - 1)
@@ -36,7 +37,7 @@ class MCPricer:
         ctrl_var: Literal['stock_prices', 'geom_asian'] | None = None,
     ) -> tuple[float, float]:
 
-        N = int(self.n_paths) * 2 if antithetic else int(self.n_paths)
+        N = int(self.n_samples) * 2 if antithetic else int(self.n_samples)
         stock_prices = self.stock_spot * torch.ones(N, device=self.device)
         price_sums = log_price_sums = torch.zeros_like(stock_prices)
 
@@ -70,22 +71,23 @@ class MCPricer:
             ) 
 
         if antithetic:
-            half = int(self.n_paths)
+            half = int(self.n_samples)
             payoffs = (payoffs[:half] + payoffs[half:]) / 2
         
         npv = torch.mean(payoffs)
-        std = torch.std(payoffs, correction=1) / math.sqrt(self.n_paths)
+        std = torch.std(payoffs, correction=1) / math.sqrt(self.n_samples)
         return npv.item(), std.item()
 
-    @staticmethod
-    def _iterable(dtm: int) -> Iterable:
-        return tqdm(
-            range(dtm),
-            desc="Simulating...",
-            bar_format="{desc}: {n_fmt}/{total_fmt}|{bar}| {rate_fmt}",
-            unit="step",
-            unit_scale=True,
-        )
+    def _iterable(self, dtm: int) -> Iterable:
+        if self.verbose:
+            return tqdm(
+                range(dtm),
+                desc="Simulating...",
+                bar_format="{desc}: {n_fmt}/{total_fmt}|{bar}| {rate_fmt}",
+                unit="step",
+                unit_scale=True,
+            )
+        return range(dtm)
 
     def _evolve(
             self,
@@ -94,7 +96,7 @@ class MCPricer:
             antithetic: bool
         ) -> torch.Tensor:
         Z = torch.randn(
-            int(self.n_paths), 
+            int(self.n_samples), 
             device=self.device, 
             dtype=torch.float64, 
             generator=generator
@@ -151,7 +153,7 @@ if __name__ == "__main__":
     mc_spec = {
         'seed': 0,
         'device': torch.device('cuda'),
-        'n_paths': 2**24
+        'n_samples': 2**24
     }
     pricer = MCPricer(**mkt_cond, **mc_spec)
 
@@ -163,18 +165,19 @@ if __name__ == "__main__":
     npv, std = pricer.run_mc(**contract, antithetic=True)
     print(f"npv is {npv:.4f} with mc std {std:.4f}")
 
-    print("\nRunning control variate MC...")
-    print("control policy is using stock prices")
+    print("\nRunning control variate (stock_prices) MC...")
     npv, std = pricer.run_mc(**contract, ctrl_var='stock_prices')
     print(f"npv is {npv:.4f} with mc std {std:.4f}")
 
-    print("\nRunning control variante MC...")
-    print("control policy is using geometric asian option")
+    print("\nRunning control variante (geomtric Asian) MC...")
     npv, std = pricer.run_mc(**contract, ctrl_var='geom_asian')
     print(f"npv is {npv:.4f} with mc std {std:.4f}")
 
-    print("\nRunning anthithetic with control variate MC...")
-    print("control policy is using geometric asian option")
+    print("\nRunning anthithetic with control variate (stock_prices) MC...")
+    npv, std = pricer.run_mc(**contract, antithetic=True, ctrl_var='stock_prices')
+    print(f"npv is {npv:.4f} with mc std {std:.4f}")
+
+    print("\nRunning anthithetic with control variate (geomtric Asian) MC...")
     npv, std = pricer.run_mc(**contract, antithetic=True, ctrl_var='geom_asian')
     print(f"npv is {npv:.4f} with mc std {std:.4f}")
             
