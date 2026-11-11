@@ -19,25 +19,26 @@
 
 \noindent\textbf{2.} For the antithentic method, we used the opposite-sign normal samples as a pair. 
 For the control variate method, we implemented two different control functions, 
-which are ternimal stock price and geometric Asian call option.
+which are the ternimal stock price and the price of corresponding geometric Asian call option.
 
 \begin{center}
 \begin{tabular}{lrr}
-\hline
-Method & NPV & MC standard error \\
-\hline
-Plain MC & 5.1914 & 0.0085 \\
-Control variate (terminal stock price) & 5.1924 & 0.0054 \\
-Control variate (geometric Asian call) & 5.1983 & 0.0003 \\
-Antithetic MC & 5.1966 & 0.0069 \\
-Antithetic + control variate (terminal stock price) & 5.1961 & 0.0046 \\
-Antithetic + control variate (geometric Asian call) & 5.1987 & 0.0003 \\
-\hline
+    \hline
+    Method & NPV & MC standard error \\
+    \hline
+    Plain MC & 5.1914 & 0.0085 \\
+    Control variate (terminal stock price) & 5.1924 & 0.0054 \\
+    Control variate (geometric Asian call) & 5.1983 & 0.0003 \\
+    Antithetic MC & 5.1966 & 0.0069 \\
+    Antithetic + control variate (terminal stock price) & 5.1961 & 0.0046 \\
+    Antithetic + control variate (geometric Asian call) & 5.1987 & 0.0003 \\
+    \hline
 \end{tabular}
 \end{center}
 
-Each method uses $2^{20}$ simulated paths, the fixed seed $0$, and is computed on CUDA.
-For antithetic methods, these paths form $2^{23}$ pairs.
+\noindent Each method uses $2^{20}$ simulated paths, the fixed seed $0$, and is computed on CUDA.
+For antithetic methods, these paths form $2^{19}$ pairs. 
+The price of the vanilla call option with the same strike and maturity is $8.8249$. 
 
 
 \end{document}
