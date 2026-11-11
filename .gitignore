@@ -2,3 +2,6 @@
 **/__pycache__
 .pytest_cache/
 mc_std_plots/
+.vscode/
+*.log
+*.synctex.gz
