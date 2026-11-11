@@ -116,9 +116,12 @@ class MCPricer:
     ) -> tuple[float, float]:
         arith_mean = torch.mean(disc_a_payoffs)
         geom_mean = torch.mean(disc_g_payoffs)
-        est_corr = (
-            torch.sum((disc_a_payoffs - arith_mean) * (disc_g_payoffs - geom_mean))
-            / torch.sum((disc_g_payoffs - geom_mean)**2))
+        geom_m2 = torch.sum((disc_g_payoffs - geom_mean)**2)
+        if geom_m2 == 0:
+            est_corr = 0
+        else:
+            est_corr = torch.sum((disc_a_payoffs - arith_mean) * (disc_g_payoffs - geom_mean)) / geom_m2
+
         geom_ana = self._analytic_geom_asian(strike, dtm)
 
         ctrl_var_payoffs = disc_a_payoffs - est_corr * (disc_g_payoffs - geom_ana)
@@ -141,7 +144,7 @@ if __name__ == "__main__":
     mc_spec = {
         'seed': 0,
         'device': torch.device('cuda'),
-        'n_paths': 10_000_000
+        'n_paths': 2**24
     }
     pricer = MCPricer(**mkt_cond, **mc_spec)
 

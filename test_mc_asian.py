@@ -15,18 +15,30 @@ MAX_CI_HALF_WIDTH_FRACTION = 0.5
 
 
 @pytest.mark.parametrize(
-    ("strike", "dtm", "vol", "dividend", "rate"),
+    ("strike", "dividend", "rate"),
     [
-        pytest.param(90, 63, 0.25, 0.02, 0.03, id="ITM"),
-        pytest.param(100, 125, 0.35, 0.08, 0.05, id="ATM"),
-        pytest.param(110, 175, 0.40, 0.04, 0.02, id="OTM"),
+        pytest.param(90, 0.02, 0.03, id="ITM"),
+        pytest.param(100, 0.08, 0.05, id="ATM"),
+        pytest.param(110, 0.04, 0.02, id="OTM"),
     ],
 )
-def test_mc_policy_prices_are_equivalent(strike, dtm, vol, dividend, rate):
+@pytest.mark.parametrize(
+    'dtm',
+    [10, 63, 125, 250, 500]
+)
+@pytest.mark.parametrize(
+    'vol',
+    [0.01, 0.1, 0.2, 0.4]
+)
+@pytest.mark.parametrize(
+    "root_seed",
+    [0, 12321, 45343]
+)
+def test_mc_policy_prices_are_equivalent(strike, dtm, vol, dividend, rate, root_seed):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     results = {}
     # Distinct seeds let us combine the independent price standard errors.
-    for policy, seed in [("plain", 101), ("antithetic", 202), ("ctrl_var", 303)]:
+    for policy, seed in [("plain", root_seed), ("antithetic", root_seed+3141), ("ctrl_var", root_seed+5926)]:
         # Antithetic takes a pair count. Each pair uses two simulated paths.
         n_paths = TOTAL_PATHS // 2 if policy == "antithetic" else TOTAL_PATHS
         pricer = MCPricer(
