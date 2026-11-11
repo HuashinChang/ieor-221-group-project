@@ -138,7 +138,6 @@ class MCPricer:
         return orig_payoffs - est_corr * (ctrl_sampled - ctrl_ana_val)
         
 
-
 if __name__ == "__main__":
     mkt_cond = {
         'stock_spot': 100,
@@ -161,16 +160,17 @@ if __name__ == "__main__":
     npv, std = pricer.run_mc(**contract)
     print(f"npv is {npv:.4f} with mc std {std:.4f}")
 
-    print("\nRunning antithetic MC...")
-    npv, std = pricer.run_mc(**contract, antithetic=True)
-    print(f"npv is {npv:.4f} with mc std {std:.4f}")
-
     print("\nRunning control variate (stock_prices) MC...")
     npv, std = pricer.run_mc(**contract, ctrl_var='stock_prices')
     print(f"npv is {npv:.4f} with mc std {std:.4f}")
 
     print("\nRunning control variante (geomtric Asian) MC...")
     npv, std = pricer.run_mc(**contract, ctrl_var='geom_asian')
+    print(f"npv is {npv:.4f} with mc std {std:.4f}")
+
+    pricer.n_samples = int(mc_spec['n_samples'] / 2)
+    print("\nRunning antithetic MC...")
+    npv, std = pricer.run_mc(**contract, antithetic=True)
     print(f"npv is {npv:.4f} with mc std {std:.4f}")
 
     print("\nRunning anthithetic with control variate (stock_prices) MC...")

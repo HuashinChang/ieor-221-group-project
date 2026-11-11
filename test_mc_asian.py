@@ -9,7 +9,7 @@ from scipy.stats import norm
 from mc_asion import MCPricer
 
 
-N_SAMPLES = 2**19
+TOTAL_PATHS = 2**19
 VARIANCE_REDUCTION = (
     ("plain", False, None),
     ("antithetic", True, None),
@@ -48,12 +48,14 @@ def test_mc_policy_prices_are_equivalent(strike, dtm, vol, dividend, rate, root_
     results = {}
     # Distinct seeds let us combine the independent price standard errors.
     for index, (policy, antithetic, ctrl_var) in enumerate(VARIANCE_REDUCTION):
+        # Match total paths; one antithetic sample is a pair of paths.
+        n_samples = TOTAL_PATHS // 2 if antithetic else TOTAL_PATHS
         pricer = MCPricer(
             stock_spot=100,
             dividend=dividend,
             vol=vol,
             rate=rate,
-            n_samples=N_SAMPLES,
+            n_samples=n_samples,
             seed=root_seed + 3141 * index,
             device=device,
         )
@@ -82,11 +84,14 @@ def test_mc_policy_prices_are_equivalent(strike, dtm, vol, dividend, rate, root_
 def test_mc_mean_and_standard_error_use_independent_samples(
     policy, antithetic, ctrl_var, monkeypatch
 ):
-    # An odd count catches accidental halving of the independent sample count.
+    # Ten total paths become five independent antithetic pairs.
     shocks = np.array(
         [[-1.8, -0.7, 0.1, 0.9, 1.5], [0.2, -1.1, 1.3, -0.5, 0.6]]
     )
-    n_samples = shocks.shape[1]
+    total_paths = 2 * shocks.shape[1]
+    n_samples = total_paths // 2 if antithetic else total_paths
+    if not antithetic:
+        shocks = np.concatenate((shocks, -shocks), axis=1)
     draws = iter(shocks)
     draw_sizes = []
 
@@ -114,6 +119,7 @@ def test_mc_mean_and_standard_error_use_independent_samples(
     drift = (pricer.rate - pricer.dividend - pricer.vol**2 / 2) / pricer.day_count
     increments = drift + pricer.vol * path_shocks / np.sqrt(pricer.day_count)
     paths = pricer.stock_spot * np.exp(np.cumsum(increments, axis=0))
+    assert paths.shape == (dtm, total_paths)
     discount = np.exp(-pricer.rate * dtm / pricer.day_count)
     payoffs = discount * np.maximum(paths.mean(axis=0) - strike, 0)
 
