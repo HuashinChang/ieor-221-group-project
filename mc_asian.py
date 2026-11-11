@@ -85,14 +85,14 @@ class MCPricer:
             disc_a_payoffs = (disc_a_payoffs[:half] + disc_a_payoffs[half:]) / 2
             ctrl_sampled = (ctrl_sampled[:half] + ctrl_sampled[half:]) / 2
 
-        payoffs = self._apply_ctrl_var(
+        final_samples = self._apply_ctrl_var(
                 orig_payoffs=disc_a_payoffs,
                 ctrl_sampled=ctrl_sampled,
                 ctrl_ana_val=ctrl_ana_val
             )
         
-        npv = torch.mean(payoffs)
-        std = torch.std(payoffs, correction=1) / math.sqrt(self.n_samples)
+        npv = torch.mean(final_samples)
+        std = torch.std(final_samples, correction=1) / math.sqrt(self.n_samples)
         return npv.item(), std.item()
 
     def _iterable(self, dtm: int) -> Iterable:
@@ -154,16 +154,24 @@ class MCPricer:
 
         return orig_payoffs - est_corr * (ctrl_sampled - ctrl_ana_val)
 
-def bsm_european_call(stock, dividend, vol, ttm, rate, strike):
-    d1 = (math.log(stock / strike) + ttm * (rate - dividend + 0.5 * vol**2)) / (vol * math.sqrt(ttm))
+
+def bsm_european_call(stock_spot, dividend, vol, ttm, rate, strike):
+    d1 = (math.log(stock_spot / strike) + ttm * (rate - dividend + 0.5 * vol**2)) / (vol * math.sqrt(ttm))
     d2 = d1 - vol * math.sqrt(ttm)
     return  (
-        stock * math.exp(-dividend * ttm) * norm.cdf(d1)
-     - strike * math.exp(-rate * ttm) * norm.cdf(d2)
+        stock_spot * math.exp(-dividend * ttm) * norm.cdf(d1)
+        - strike * math.exp(-rate * ttm) * norm.cdf(d2)
     )
-        
 
-if __name__ == "__main__":
+
+def main():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--n-paths", type=int, default=2**20)
+    parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument("--seed", type=int, default=0)
+    arg = parser.parse_args()
+
     mkt_cond = {
         'stock_spot': 100,
         'dividend': 0.08,
@@ -175,10 +183,17 @@ if __name__ == "__main__":
         'strike': 100
     }
     mc_spec = {
-        'seed': 0,
-        'device': torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-        'n_samples': 2**20
+        'seed': arg.seed,
+        'device': torch.device(arg.device),
+        'n_samples': arg.n_paths
     }
+
+    print(
+        f"Simulation info: total paths={arg.n_paths:,}, "
+        f"seed={arg.seed}, device={mc_spec['device']}"
+    )
+    print("Adjust with --n-paths, --seed, --device (cpu/cuda); see --help.\n")
+
     pricer = MCPricer(**mkt_cond, **mc_spec)
 
     print("Running plain MC...")
@@ -211,4 +226,8 @@ if __name__ == "__main__":
         strike=contract['strike'], 
         ttm=contract['dtm']/pricer.day_count
         )
-    print(f"The vanilla call with the same strike and maturity has the price {vanilla_price}.")
+    print(f"\nThe vanilla call with the same strike and maturity has the price {vanilla_price}.")
+        
+
+if __name__ == "__main__":
+    main()
