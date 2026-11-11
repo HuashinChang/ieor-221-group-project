@@ -1,12 +1,13 @@
 from pathlib import Path
 
 import torch
+import math
 from matplotlib.figure import Figure
 
 from mc_asion import MCPricer
 
 
-SAMPLE_COUNTS = (2**12, 2**14, 2**16, 2**18, 2**20)
+SAMPLE_COUNTS = (2**10, 2**12, 2**14, 2**16, 2**18, 2**20)
 STRIKES = {"ITM": 90, "ATM": 100, "OTM": 110}
 VARIANCE_REDUCTION = (
     ("Plain", False, None),
@@ -43,6 +44,8 @@ def main(output_dir=OUTPUT_DIR):
 
         ax.set_title(f"{moneyness} Asian call (strike {strike})")
         ax.set_xlabel("Independent samples (N; antithetic uses 2N paths)")
+        x_label = [f"2**{str(int(math.log2(N)))}" for N in SAMPLE_COUNTS]
+        ax.set_xticks(ticks=SAMPLE_COUNTS, labels=x_label)
         ax.set_ylabel("MC price standard error")
         ax.grid(True, which="both", alpha=0.25)
         ax.legend()
