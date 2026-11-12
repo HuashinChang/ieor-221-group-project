@@ -29,7 +29,7 @@ def bsm_prices_greeks(stock_spot, vol, rate, ttm, strike, dividend):
 @pytest.mark.parametrize("strike", [90, 100, 110], ids=['OTM', 'ATM', 'ITM'])
 @pytest.mark.parametrize("ttm", [0.1, 1, 5])
 def test_same_as_euro_when_no_dividend(vol, rate, strike, ttm):
-    bump_size = 1e-3
+    bump_size = 1e-4
     inputs = {
         'stock_spot': 100.0,
         'vol': vol,
