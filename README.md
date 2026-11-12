@@ -1,33 +1,39 @@
 The dependencies are `torch>=2.0`, `scipy`, `tqdm`, and `matplotlib`.
 
-Tested with Python 3.14.8 on Linux. Run `pytest` from the project directory to replicate the test results. A CUDA device and `quantlib` are required for tests, and it takes a while to run the full test cases.
-
-### Problem 1
-The main implementation of Problem 1 is in `CRR_american.py`. Run from the project directory:
+### Reproduce answers
+Run from the project directory to reproduce the answer with default parameters:
 
 ```bash
-python CRR_american.py
+python answer.py
 ```
-This runs the CRR tree at increasing step counts and saves the price and Greeks to `plots/crr_convergence.csv` with five decimal places. Use `--method BBSR` for running BBSR tree instead.
+The results is saved in `plots/`. For MC simulation, CUDA is used when available; otherwise, the script runs on CPU.
 
-You can also run `plot_tree_convergence.py` to compare the convergence of CRR, CRR with smoothing, and BBSR:
+You can also run a specific problem with your choice of methods and parameters. For example, use
+
+```bash
+python answers.py p1 --method BBSR --start-n-steps 2048 --max-n-steps 32768
+```
+to run a BBSR tree at doubling step counts from 2048 to 32768, or use
+
+```bash
+python answers.py p2 --n-paths $((2**24)) --device "cuda"
+```
+to run MC with 2**24 paths on CUDA.
+
+CRR tree is implemented in `tree_american.py`, and the 
+
+Tested with Python 3.14.8 on Linux. Run `pytest` from the project directory to replicate the test results. A CUDA device and `quantlib` are required for tests, and it takes a while to run the full test cases.
+
+### Other plots
+Run `plot_tree_convergence.py` to compare the convergence of CRR, CRR with smoothing, and BBSR:
 
 ```bash
 python plot_tree_convergence.py
 ```
-The comparison figure is saved as `plots/tree_convergence.png`.
 
-### Problem 2 
-The main implementation of Problem 2 is in `mc_asian.py`. Run from the project directory to reproduce answers to the Problem 2:
-
-```bash
-python mc_asian.py
-```
-CUDA is used when available; otherwise, the script runs on CPU (it may take some time if you run it on CPU).
-
-You can also run the file `plot_mc_asian_std.py` to generate variance-reduction figures comparing the mc variance from different methods:
+Run the file `plot_mc_asian_std.py` to generate variance-reduction figures comparing the mc variance from different methods:
 
 ```bash
 python plot_mc_asian_std.py
 ```
-The produced figures are saved in `plots/`.
+All produced figures are saved in `plots/`.
