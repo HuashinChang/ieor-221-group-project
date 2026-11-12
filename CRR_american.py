@@ -193,7 +193,8 @@ def main():
     print(f'Rho: {rho:.4f}')
 
     print(f"\nTree method: {arg.method}, total steps: {arg.n_steps}, " +  
-          f"vega bump size: {arg.vol_bump_size}, rho bump size: {arg.rate_bump_size}")
+          f"volatility bump size: {arg.vol_bump_size}, rate bump size: {arg.rate_bump_size}")
+    print("Adjust with --method, --n-steps, --vol-bump-size, --rate-bump-size; see --help.\n")
 
     inputs.pop('n_steps')
     vanilla_price = bsm_call_price(**inputs)
