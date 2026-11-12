@@ -8,6 +8,7 @@ Implemented in `CRR_american.py`. Run from the project directory to reproduce an
 ```bash
 python CRR_american.py
 ```
+BBSR tree is also implemented, use `--method` to selected tree method.
 
 ### Problem 2 
 The main implementation of Problem 2 is in `mc_asian.py`. Run from the project directory to reproduce answers to the Problem 2:

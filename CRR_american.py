@@ -199,7 +199,7 @@ def main():
     inputs.pop('n_steps')
     vanilla_price = bsm_call_price(**inputs)
 
-    print("\nFor reference, the price of the corresponding" 
+    print("For reference, the price of the corresponding " 
           + f"vanilla call option is {vanilla_price:.4f}")
 
 
