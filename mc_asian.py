@@ -50,8 +50,8 @@ class MCPricer:
                 ``'stock_prices'`` uses the stock price.\n
                 ``'geom_asian'`` uses the geometric Asian call payoff.\n 
                 Defaults to None.
-            pilot_usage: propotion of samples used for control coefficient 
-                estimate. 
+            pilot_usage: propotion of samples allocated for the estimation of
+                control coefficient. Effective only when `ctrl_var` is not `None`.
 
         Returns:
             A tuple ``(npv, std)`` of Python floats. 
