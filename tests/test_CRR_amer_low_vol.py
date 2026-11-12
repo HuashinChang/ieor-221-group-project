@@ -1,7 +1,7 @@
 import pytest
 import math
 from scipy.stats import norm
-from CRR_american import CRR_american_call, cent_fdm
+from CRR_american import CRR_american_call, cent_fdm, BBSR_american_call
 
 def bsm_prices_greeks(stock_spot, vol, rate, ttm, strike, dividend):
     d1 = (
@@ -23,7 +23,6 @@ def bsm_prices_greeks(stock_spot, vol, rate, ttm, strike, dividend):
     rho = strike * ttm * disc * norm.cdf(d2)
     return price, delta, gamma, theta, vega, rho
 
-# [0.01, 0.1, 0.2, 0.35, 0.5]
 
 @pytest.mark.parametrize(
     ("vol", "rate", "strike", "ttm"),
@@ -34,7 +33,7 @@ def bsm_prices_greeks(stock_spot, vol, rate, ttm, strike, dividend):
     ]
 )
 def test_same_as_euro_when_no_dividend(vol, rate, strike, ttm):
-    bump_size = 1e-3
+    bump_size = 1e-4
     inputs = {
         'stock_spot': 100.0,
         'vol': vol,
@@ -42,9 +41,9 @@ def test_same_as_euro_when_no_dividend(vol, rate, strike, ttm):
         'strike': strike,
         'ttm': ttm,
         'dividend': 0.0,
-        'n_steps': 150000,
+        'n_steps': 10000,
     }
-    a_price, a_delta, a_gamma, a_theta = CRR_american_call(**inputs)
+    a_price, a_delta, a_gamma, a_theta = BBSR_american_call(**inputs)
     a_vega = cent_fdm(**inputs, bump_param='vol', bump_size=bump_size)
     a_rho = cent_fdm(**inputs, bump_param='rate', bump_size=bump_size)
 
