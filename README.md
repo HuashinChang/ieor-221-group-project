@@ -8,9 +8,7 @@ The main implementation of Problem 1 is in `CRR_american.py`. Run from the proje
 ```bash
 python CRR_american.py
 ```
-This runs the CRR tree at increasing step counts and saves the price and Greeks
-to `plots/crr_convergence.csv` with five decimal places. Use `--method BBSR` to
-save `plots/bbsr_convergence.csv` instead, or `--output-dir` to choose a directory.
+This runs the CRR tree at increasing step counts and saves the price and Greeks to `plots/crr_convergence.csv` with five decimal places. Use `--method BBSR` for running BBSR tree instead.
 
 You can also run `plot_tree_convergence.py` to compare the convergence of CRR, CRR with smoothing, and BBSR:
 
