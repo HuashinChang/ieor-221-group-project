@@ -35,6 +35,7 @@ class MCPricer:
         dtm: int,
         antithetic: bool = False,
         ctrl_var: Literal['stock_prices', 'geom_asian'] | None = None,
+        pilot_usage: float = 0.1
     ) -> tuple[float, float]:
         """Estimate a fixed-strike arithmetic Asian call price 
         by Monte Carlo with different variance reduction methods.
@@ -49,6 +50,8 @@ class MCPricer:
                 ``'stock_prices'`` uses the stock price.\n
                 ``'geom_asian'`` uses the geometric Asian call payoff.\n 
                 Defaults to None.
+            pilot_usage: propotion of samples used for control coefficient 
+                estimate. 
 
         Returns:
             A tuple ``(npv, std)`` of Python floats. 
@@ -88,11 +91,12 @@ class MCPricer:
         final_samples = self._apply_ctrl_var(
                 orig_payoffs=disc_a_payoffs,
                 ctrl_sampled=ctrl_sampled,
-                ctrl_ana_val=ctrl_ana_val
+                ctrl_ana_val=ctrl_ana_val,
+                pilot_usage=pilot_usage if ctrl_var is not None else 0
             )
         
         npv = torch.mean(final_samples)
-        std = torch.std(final_samples, correction=1) / math.sqrt(self.n_samples)
+        std = torch.std(final_samples, correction=1) / math.sqrt(final_samples.size(dim=0))
         return npv.item(), std.item()
 
     def _iterable(self, dtm: int) -> Iterable:
@@ -142,18 +146,23 @@ class MCPricer:
         self,
         orig_payoffs: torch.Tensor, 
         ctrl_sampled: torch.Tensor,
-        ctrl_ana_val: float, 
-    ) -> tuple[float, float]:
-        orig_mean = torch.mean(orig_payoffs)
-        ctrl_mean = torch.mean(ctrl_sampled)
-        ctrl_m2 = torch.sum((ctrl_sampled - ctrl_mean)**2)
+        pilot_usage: float, 
+        ctrl_ana_val: float
+    ) -> torch.Tensor:
+        N_pilot = int(self.n_samples * pilot_usage)
+        pilot_orig = orig_payoffs[:N_pilot]
+        pilot_ctrl = ctrl_sampled[:N_pilot]
+
+        orig_mean = torch.mean(pilot_orig)
+        ctrl_mean = torch.mean(pilot_ctrl)
+        ctrl_m2 = torch.sum((pilot_ctrl - ctrl_mean)**2)
         if ctrl_m2 == 0:
             est_corr = 0
         else:
-            est_corr = torch.sum((orig_payoffs - orig_mean) * (ctrl_sampled - ctrl_mean)) / ctrl_m2
+            est_corr = torch.sum((pilot_orig - orig_mean) * (pilot_ctrl - ctrl_mean)) / ctrl_m2
 
-        return orig_payoffs - est_corr * (ctrl_sampled - ctrl_ana_val)
-
+        return orig_payoffs[N_pilot:] - est_corr * (ctrl_sampled[N_pilot:] - ctrl_ana_val)
+    
 
 def bsm_european_call(stock_spot, dividend, vol, ttm, rate, strike):
     d1 = (math.log(stock_spot / strike) + ttm * (rate - dividend + 0.5 * vol**2)) / (vol * math.sqrt(ttm))
