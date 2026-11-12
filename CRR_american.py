@@ -162,49 +162,83 @@ def _select_pricer(method: Literal['CRR', 'BBSR']) -> Callable[..., tuple[float,
     raise TypeError('Invalid input string.')
 
 
+def _export_convergence(rows, method, output_dir):
+    import csv
+
+    columns = ("N steps", "NPV", "Delta", "Gamma", "Theta", "Vega", "Rho")
+    formatted_rows = [
+        [str(n_steps), *(f"{value:.5f}" for value in values)]
+        for n_steps, *values in rows
+    ]
+    output_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = output_dir / f"{method.lower()}_convergence.csv"
+    with csv_path.open("w", newline="") as output:
+        writer = csv.writer(output)
+        writer.writerow(columns)
+        writer.writerows(formatted_rows)
+
+    print(" ".join(f"{column:>12}" for column in columns))
+    for row in formatted_rows:
+        print(" ".join(f"{value:>12}" for value in row))
+    print(csv_path)
+
+
 def main():
     import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--n-steps', type=int, default=10_000)
-    parser.add_argument('--rate-bump-size', type=float, default=1e-4)
-    parser.add_argument('--vol-bump-size', type=float, default=1e-4)
-    parser.add_argument('--method', type=str, choices=['CRR', 'BBSR'], default='CRR')
-    arg = parser.parse_args()
+    from pathlib import Path
+
+    parser = argparse.ArgumentParser(
+        description="Calculate price and Greeks at doubling tree step counts; save CSV."
+    )
+    parser.add_argument(
+        "--start-n-steps", type=int, default=2**8,
+        help="starting step count (default: 256); multiply by 2 up to 32768",
+    )
+    parser.add_argument("--rate-bump-size", type=float, default=1e-4)
+    parser.add_argument("--vol-bump-size", type=float, default=1e-4)
+    parser.add_argument("--method", choices=["CRR", "BBSR"], default="CRR")
+    parser.add_argument(
+        "--output-dir", type=Path, default=Path(__file__).with_name("plots")
+    )
+    args = parser.parse_args()
+    max_n_steps = 32768
+    if not 4 <= args.start_n_steps <= max_n_steps:
+        parser.error(f"--start-n-steps must be between 4 and {max_n_steps}")
+
+    step_counts = []
+    n_steps = args.start_n_steps
+    while n_steps < max_n_steps:
+        step_counts.append(n_steps)
+        n_steps *= 2
+    step_counts.append(max_n_steps)
 
     inputs = {
-        'stock_spot': 100.0,
-        'vol': 0.35,
-        'ttm': 5,
-        'rate': 0.05,
-        'strike': 100.0,
-        'dividend': 0.08,
-        'n_steps': arg.n_steps
+        "stock_spot": 100.0,
+        "vol": 0.35,
+        "ttm": 5,
+        "rate": 0.05,
+        "strike": 100.0,
+        "dividend": 0.08,
     }
-    
-    amer_price, delta, gamma, theta = _select_pricer(arg.method)(**inputs)
-    vega = cent_fdm(**inputs, bump_size=arg.vol_bump_size, bump_param='vol', tree_method=arg.method)
-    rho = cent_fdm(**inputs, bump_size=arg.rate_bump_size, bump_param='rate', tree_method=arg.method)
+    pricer = _select_pricer(args.method)
+    rows = []
+    for n_steps in step_counts:
+        print(f"Calculating {args.method} at N={n_steps:,}...", flush=True)
+        price, delta, gamma, theta = pricer(**inputs, n_steps=n_steps)
+        vega = cent_fdm(
+            **inputs, n_steps=n_steps, bump_size=args.vol_bump_size,
+            bump_param="vol", tree_method=args.method,
+        )
+        rho = cent_fdm(
+            **inputs, n_steps=n_steps, bump_size=args.rate_bump_size,
+            bump_param="rate", tree_method=args.method,
+        )
+        rows.append((n_steps, price, delta, gamma, theta, vega, rho))
 
-    print(f'NPV: {amer_price:.4f}')
-    print(f'Delta: {delta:.4f}')
-    print(f'Gamma: {gamma:.4f}')
-    print(f'Theta: {theta:.4f}')
-    print(f'Vega: {vega:.4f}')
-    print(f'Rho: {rho:.4f}')
-
-    print(f"\nTree method: {arg.method}, total steps: {arg.n_steps}, " +  
-          f"volatility bump size: {arg.vol_bump_size}, rate bump size: {arg.rate_bump_size}")
-    print("Adjust with --method, --n-steps, --vol-bump-size, --rate-bump-size; see --help.\n")
-
-    inputs.pop('n_steps')
+    _export_convergence(rows, args.method, args.output_dir)
     vanilla_price = bsm_call_price(**inputs)
-
-    print("For reference, the price of the corresponding " 
-          + f"vanilla call option is {vanilla_price:.4f}")
+    print(f"Corresponding European call price: {vanilla_price:.5f}")
 
 
 if __name__ == "__main__":
     main()
-
-
-    
