@@ -175,7 +175,7 @@ def main():
         'stock_spot': 100.0,
         'vol': 0.35,
         'ttm': 5,
-        'rate': 0.5,
+        'rate': 0.05,
         'strike': 100.0,
         'dividend': 0.08,
         'n_steps': arg.n_steps
