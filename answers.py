@@ -3,6 +3,7 @@ import torch
 from pathlib import Path
 import csv
 
+
 def _get_p1_parser():
     parser = ArgumentParser(
         description="Calculate price and Greeks at doubling tree step counts; save CSV.",
@@ -14,7 +15,7 @@ def _get_p1_parser():
     )
     parser.add_argument("--rate-bump-size", type=float, default=1e-4)
     parser.add_argument("--vol-bump-size", type=float, default=1e-4)
-    parser.add_argument("--method", choices=["CRR", "BBSR"], default="CRR")
+    parser.add_argument("--method", choices=["CRR", "BBSR", 'CRRS'], default="CRR")
     parser.add_argument(
         "--output-dir", type=Path, default=Path(__file__).with_name("plots")
     )
@@ -67,11 +68,11 @@ def _p1(parser: ArgumentParser):
         "strike": 100.0,
         "dividend": 0.08,
     }
+
     pricer = select_pricer(args.method)
     rows = []
     for n_steps in step_counts:
         print(f"Calculating {args.method} at N={n_steps:,}...", flush=True)
-        price, delta, gamma, theta = pricer(**inputs, n_steps=n_steps)
         vega = cent_fdm(
             **inputs, n_steps=n_steps, bump_size=args.vol_bump_size,
             bump_param="vol", tree_method=args.method,
@@ -80,6 +81,11 @@ def _p1(parser: ArgumentParser):
             **inputs, n_steps=n_steps, bump_size=args.rate_bump_size,
             bump_param="rate", tree_method=args.method,
         )
+        if args.method == "CRRS":
+            inputs["smoothing"] = "CRRS"
+        price, delta, gamma, theta = pricer(**inputs, n_steps=n_steps)
+        if args.method == "CRRS":
+            inputs.pop("smoothing")
         rows.append((n_steps, price, delta, gamma, theta, vega, rho))
         
     print("")
@@ -87,7 +93,6 @@ def _p1(parser: ArgumentParser):
     vanilla_price = bsm_call_price(**inputs)
     print(f"\nCorresponding European call price: {vanilla_price:.5f}")
     
-
 
 def _get_p2_parser():
     parser = ArgumentParser(
