@@ -199,43 +199,51 @@ def main():
 
     print(
         f"Simulation info: total paths={arg.n_paths:,}, "
-        f"seed={arg.seed}, device={mc_spec['device']}"
+        f"seed={arg.seed}, device={mc_spec['device']}."
     )
     print("Adjust with --n-paths, --seed, --device ('cpu'/'cuda'); see --help.\n")
 
     pricer = MCPricer(**mkt_cond, **mc_spec)
+    rows = []
 
-    print("Running plain MC...")
+    print("Calculating Plain MC...", flush=True)
     npv, std = pricer.run_mc(**contract)
-    print(f"npv is {npv:.4f} with mc std {std:.4f}")
+    rows.append(("Plain MC", npv, std))
 
-    print("\nRunning control variate (stock_prices) MC...")
+    print("Calculating Control variate (stock_prices)...", flush=True)
     npv, std = pricer.run_mc(**contract, ctrl_var='stock_prices')
-    print(f"npv is {npv:.4f} with mc std {std:.4f}")
+    rows.append(("Control variate (stock_prices)", npv, std))
 
-    print("\nRunning control variante (geomtric Asian) MC...")
+    print("Calculating Control variate (geom_asian)...", flush=True)
     npv, std = pricer.run_mc(**contract, ctrl_var='geom_asian')
-    print(f"npv is {npv:.4f} with mc std {std:.4f}")
+    rows.append(("Control variate (geom_asian)", npv, std))
 
     pricer.n_samples = int(mc_spec['n_samples'] / 2)
-    print("\nRunning antithetic MC...")
+    print("Calculating Antithetic...", flush=True)
     npv, std = pricer.run_mc(**contract, antithetic=True)
-    print(f"npv is {npv:.4f} with mc std {std:.4f}")
+    rows.append(("Antithetic", npv, std))
 
-    print("\nRunning anthithetic with control variate (stock_prices) MC...")
+    print("Calculating Antithetic + CV (stock_prices)...", flush=True)
     npv, std = pricer.run_mc(**contract, antithetic=True, ctrl_var='stock_prices')
-    print(f"npv is {npv:.4f} with mc std {std:.4f}")
+    rows.append(("Antithetic + CV (stock_prices)", npv, std))
 
-    print("\nRunning anthithetic with control variate (geomtric Asian) MC...")
+    print("Calculating Antithetic + CV (geom_asian)...", flush=True)
     npv, std = pricer.run_mc(**contract, antithetic=True, ctrl_var='geom_asian')
-    print(f"npv is {npv:.4f} with mc std {std:.4f}")
+    rows.append(("Antithetic + CV (geom_asian)", npv, std))
 
     vanilla_price = bsm_european_call(
         **mkt_cond, 
         strike=contract['strike'], 
         ttm=contract['dtm']/pricer.day_count
         )
-    print(f"\nThe vanilla call with the same strike and maturity has the price {vanilla_price}.")
+
+    print(f"\n{'Method':<32} {'NPV':>12} {'MC std':>12}")
+    for method, npv, std in rows:
+        print(f"{method:<32} {npv:>12.4f} {std:>12.4f}")
+    print(
+        "\nThe vanilla call with the same strike and maturity "
+        f"has the price {vanilla_price}."
+    )
         
 
 if __name__ == "__main__":

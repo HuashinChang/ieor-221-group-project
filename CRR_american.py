@@ -180,7 +180,6 @@ def _export_convergence(rows, method, output_dir):
     print(" ".join(f"{column:>12}" for column in columns))
     for row in formatted_rows:
         print(" ".join(f"{value:>12}" for value in row))
-    print(csv_path)
 
 
 def main():
@@ -234,10 +233,11 @@ def main():
             bump_param="rate", tree_method=args.method,
         )
         rows.append((n_steps, price, delta, gamma, theta, vega, rho))
-
+        
+    print("")
     _export_convergence(rows, args.method, args.output_dir)
     vanilla_price = bsm_call_price(**inputs)
-    print(f"Corresponding European call price: {vanilla_price:.5f}")
+    print(f"\nCorresponding European call price: {vanilla_price:.5f}")
 
 
 if __name__ == "__main__":
