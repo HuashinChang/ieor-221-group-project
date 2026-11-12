@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 from matplotlib.figure import Figure
 
-from CRR_american import BBSR_american_call, CRR_american_call
+from tree_american import bbsr_american_call, crr_american_call
 
 
 OUTPUT_DIR = Path(__file__).with_name("plots")
@@ -38,18 +38,18 @@ def main():
     if args.reference_steps <= max(step_counts):
         parser.error("--reference-steps must exceed every plotted step count")
 
-    reference_price, *_ = BBSR_american_call(
+    reference_price, *_ = bbsr_american_call(
         **OPTION_INPUTS, n_steps=args.reference_steps
     )
     prices_by_method = {"CRR": [], "CRR + smoothing": [], "BBSR": []}
     for n_steps in step_counts:
-        price, *_ = CRR_american_call(**OPTION_INPUTS, n_steps=n_steps)
+        price, *_ = crr_american_call(**OPTION_INPUTS, n_steps=n_steps)
         prices_by_method["CRR"].append(price)
-        price, *_ = CRR_american_call(
+        price, *_ = crr_american_call(
             **OPTION_INPUTS, n_steps=n_steps, smoothing=True
         )
         prices_by_method["CRR + smoothing"].append(price)
-        price, *_ = BBSR_american_call(**OPTION_INPUTS, n_steps=n_steps)
+        price, *_ = bbsr_american_call(**OPTION_INPUTS, n_steps=n_steps)
         prices_by_method["BBSR"].append(price)
 
     figure = Figure(figsize=(13, 5.5), layout="constrained")

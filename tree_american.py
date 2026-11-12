@@ -3,7 +3,7 @@ from scipy.stats import norm
 from typing import Literal, Callable
 
 
-def CRR_american_call(
+def crr_american_call(
     *,
     stock_spot: float,
     vol: float,
@@ -68,7 +68,7 @@ def CRR_american_call(
 
     return amer_prices.item(), delta.item(), gamma.item(), theta.item()
 
-def BBSR_american_call(
+def bbsr_american_call(
     *,
     stock_spot: float,
     vol: float,
@@ -86,8 +86,8 @@ def BBSR_american_call(
         'dividend': dividend,
         'strike': strike
     }
-    res_n = CRR_american_call(**inputs, n_steps=n_steps, smoothing=True)
-    res_2n = CRR_american_call(**inputs, n_steps=int(2*n_steps), smoothing=True)
+    res_n = crr_american_call(**inputs, n_steps=n_steps, smoothing=True)
+    res_2n = crr_american_call(**inputs, n_steps=int(2*n_steps), smoothing=True)
     return (res_2n[i] * 2 - res_n[i] for i in range(len(res_n)))
 
 
@@ -143,7 +143,7 @@ def cent_fdm(
         'n_steps': n_steps
     }
 
-    pricer = _select_pricer(tree_method)
+    pricer = select_pricer(tree_method)
 
     inputs[bump_param] += bump_size
     up_price, _, _, _ = pricer(**inputs)
@@ -154,91 +154,9 @@ def cent_fdm(
     return (up_price - down_price) / (2 * bump_size)
 
 
-def _select_pricer(method: Literal['CRR', 'BBSR']) -> Callable[..., tuple[float, float, float, float]]:
+def select_pricer(method: Literal['CRR', 'BBSR']) -> Callable[..., tuple[float, float, float, float]]:
     if method == 'BBSR':
-        return BBSR_american_call
+        return bbsr_american_call
     if method == 'CRR':
-        return CRR_american_call
+        return crr_american_call
     raise TypeError('Invalid input string.')
-
-
-def _export_convergence(rows, method, output_dir):
-    import csv
-
-    columns = ("N steps", "NPV", "Delta", "Gamma", "Theta", "Vega", "Rho")
-    formatted_rows = [
-        [str(n_steps), *(f"{value:.5f}" for value in values)]
-        for n_steps, *values in rows
-    ]
-    output_dir.mkdir(parents=True, exist_ok=True)
-    csv_path = output_dir / f"{method.lower()}_convergence.csv"
-    with csv_path.open("w", newline="") as output:
-        writer = csv.writer(output)
-        writer.writerow(columns)
-        writer.writerows(formatted_rows)
-
-    print(" ".join(f"{column:>12}" for column in columns))
-    for row in formatted_rows:
-        print(" ".join(f"{value:>12}" for value in row))
-
-
-def main():
-    import argparse
-    from pathlib import Path
-
-    parser = argparse.ArgumentParser(
-        description="Calculate price and Greeks at doubling tree step counts; save CSV."
-    )
-    parser.add_argument(
-        "--start-n-steps", type=int, default=2**8,
-        help="starting step count (default: 256); multiply by 2 up to 32768",
-    )
-    parser.add_argument("--rate-bump-size", type=float, default=1e-4)
-    parser.add_argument("--vol-bump-size", type=float, default=1e-4)
-    parser.add_argument("--method", choices=["CRR", "BBSR"], default="CRR")
-    parser.add_argument(
-        "--output-dir", type=Path, default=Path(__file__).with_name("plots")
-    )
-    args = parser.parse_args()
-    max_n_steps = 32768
-    if not 4 <= args.start_n_steps <= max_n_steps:
-        parser.error(f"--start-n-steps must be between 4 and {max_n_steps}")
-
-    step_counts = []
-    n_steps = args.start_n_steps
-    while n_steps < max_n_steps:
-        step_counts.append(n_steps)
-        n_steps *= 2
-    step_counts.append(max_n_steps)
-
-    inputs = {
-        "stock_spot": 100.0,
-        "vol": 0.35,
-        "ttm": 5,
-        "rate": 0.05,
-        "strike": 100.0,
-        "dividend": 0.08,
-    }
-    pricer = _select_pricer(args.method)
-    rows = []
-    for n_steps in step_counts:
-        print(f"Calculating {args.method} at N={n_steps:,}...", flush=True)
-        price, delta, gamma, theta = pricer(**inputs, n_steps=n_steps)
-        vega = cent_fdm(
-            **inputs, n_steps=n_steps, bump_size=args.vol_bump_size,
-            bump_param="vol", tree_method=args.method,
-        )
-        rho = cent_fdm(
-            **inputs, n_steps=n_steps, bump_size=args.rate_bump_size,
-            bump_param="rate", tree_method=args.method,
-        )
-        rows.append((n_steps, price, delta, gamma, theta, vega, rho))
-        
-    print("")
-    _export_convergence(rows, args.method, args.output_dir)
-    vanilla_price = bsm_call_price(**inputs)
-    print(f"\nCorresponding European call price: {vanilla_price:.5f}")
-
-
-if __name__ == "__main__":
-    main()

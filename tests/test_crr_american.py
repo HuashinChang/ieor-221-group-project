@@ -1,7 +1,7 @@
 import pytest
 import math
 from scipy.stats import norm
-from CRR_american import CRR_american_call, cent_fdm
+from tree_american import crr_american_call, cent_fdm
 
 def bsm_prices_greeks(stock_spot, vol, rate, ttm, strike, dividend):
     d1 = (
@@ -39,7 +39,7 @@ def test_same_as_euro_when_no_dividend(vol, rate, strike, ttm):
         'dividend': 0.0,
         'n_steps': 10000,
     }
-    a_price, a_delta, a_gamma, a_theta = CRR_american_call(**inputs)
+    a_price, a_delta, a_gamma, a_theta = crr_american_call(**inputs)
     a_vega = cent_fdm(**inputs, bump_param='vol', bump_size=bump_size)
     a_rho = cent_fdm(**inputs, bump_param='rate', bump_size=bump_size)
 
