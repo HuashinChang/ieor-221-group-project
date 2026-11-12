@@ -17,8 +17,7 @@ VARIANCE_REDUCTION = (
     ("Antithetic + stock control", True, "stock_prices"),
     ("Antithetic + geometric Asian control", True, "geom_asian"),
 )
-OUTPUT_DIR = Path(__file__).with_name("mc_std_plots")
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+OUTPUT_DIR = Path(__file__).with_name("plots")
 
 def plot_variance_reduction(mean_ratios, output_dir):
     figure = Figure(figsize=(12, 6.5), layout="constrained")

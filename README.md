@@ -10,6 +10,28 @@ python CRR_american.py
 ```
 BBSR tree is also implemented, use `--method` to selected tree method.
 
+Run the convergence comparison for CRR, CRR with Black–Scholes smoothing, and BBSR:
+
+```bash
+python plot_tree_convergence.py
+```
+
+This uses the Problem 1 American-call parameters and saves price convergence and
+absolute-error panels to `plots/tree_convergence.png`. Adjacent even/odd step counts
+show tree oscillations. Errors use a numerical BBSR reference at N = 10,000, not an
+exact solution. BBSR combines smoothed trees at N and 2N, so the horizontal axis
+compares base step counts rather than equal computational cost.
+
+To choose step counts or the numerical reference resolution:
+
+```bash
+python plot_tree_convergence.py --n-steps 50 51 100 101 200 201 500 501 --reference-steps 10000
+```
+
+The default output directory for both plotting scripts is `plots/` beside the
+scripts, regardless of the working directory. The tree script also accepts
+`--output-dir` to override its destination.
+
 ### Problem 2 
 The main implementation of Problem 2 is in `mc_asian.py`. Run from the project directory to reproduce answers to the Problem 2:
 
@@ -23,4 +45,5 @@ You can also run the file `plot_mc_asian_std.py` to generate variance-reduction 
 ```bash
 python plot_mc_asian_std.py
 ```
-The produced figures are saved in `mc_std_plits/`
+The produced figures are saved in `plots/`: `mc_std_itm.png`, `mc_std_atm.png`,
+`mc_std_otm.png`, and `mc_variance_reduction.png`.
