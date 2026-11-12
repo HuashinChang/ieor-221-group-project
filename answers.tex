@@ -15,24 +15,37 @@
 
 
 
-\noindent\textbf{1.} We used a CRR tree with $10{,}000$ time steps.
+\noindent\textbf{1.} We used CRR trees with $N=2048, 4096, 8192, 16384, 32768$ time steps.
 For BBSR, we applied Black--Scholes smoothing and Richardson extrapolation,
-using $2V_{20{,}000}-V_{10{,}000}$ from trees with $10{,}000$ and $20{,}000$ time steps.
-Delta, gamma, and theta are computed from the first two levels of each tree,
-with the same extrapolation applied for BBSR.
+using $2V_{2N}-V_N$ from trees with $N$ and $2N$ time steps.
 Vega and rho are computed by central finite differences with absolute bumps of $10^{-4}$.
 
 \begin{center}
-\begin{tabular}{lrr}
+\textbf{CRR}\\[0.5em]
+\begin{tabular}{rrrrrrr}
     \hline
-    Quantity & CRR & BBSR \\
+    $N$ & NPV & Delta & Gamma & Theta & Vega & Rho \\
     \hline
-    NPV & 21.1250 & 21.1253 \\
-    Delta & 0.5217 & 0.5217 \\
-    Gamma & 0.0060 & 0.0060 \\
-    Theta & -1.0716 & -1.0714 \\
-    Vega & 67.1553 & 67.1565 \\
-    Rho & 85.1443 & 85.1453 \\
+    2048 & 21.1236 & 0.5218 & 0.0060 & -1.0722 & 67.1493 & 85.1271 \\
+    4096 & 21.1245 & 0.5217 & 0.0060 & -1.0718 & 67.1536 & 85.1444 \\
+    8192 & 21.1249 & 0.5217 & 0.0060 & -1.0716 & 67.1550 & 85.1444 \\
+    16384 & 21.1251 & 0.5217 & 0.0060 & -1.0715 & 67.1557 & 85.1448 \\
+    32768 & 21.1252 & 0.5217 & 0.0060 & -1.0715 & 67.1561 & 85.1452 \\
+    \hline
+\end{tabular}
+\end{center}
+
+\begin{center}
+\textbf{BBSR}\\[0.5em]
+\begin{tabular}{rrrrrrr}
+    \hline
+    $N$ & NPV & Delta & Gamma & Theta & Vega & Rho \\
+    \hline
+    2048 & 21.1254 & 0.5217 & 0.0060 & -1.0715 & 67.1584 & 85.1632 \\
+    4096 & 21.1254 & 0.5217 & 0.0060 & -1.0714 & 67.1564 & 85.1440 \\
+    8192 & 21.1254 & 0.5217 & 0.0060 & -1.0714 & 67.1564 & 85.1450 \\
+    16384 & 21.1254 & 0.5217 & 0.0060 & -1.0714 & 67.1565 & 85.1456 \\
+    32768 & 21.1254 & 0.5217 & 0.0060 & -1.0714 & 67.1565 & 85.1457 \\
     \hline
 \end{tabular}
 \end{center}
