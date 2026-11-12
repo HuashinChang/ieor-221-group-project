@@ -15,8 +15,30 @@
 
 
 
-\noindent\textbf{1.}
+\noindent\textbf{1.} We used a CRR tree with $10{,}000$ time steps.
+For BBSR, we applied Black--Scholes smoothing and Richardson extrapolation,
+using $2V_{20{,}000}-V_{10{,}000}$ from trees with $10{,}000$ and $20{,}000$ time steps.
+Delta, gamma, and theta are computed from the first two levels of each tree,
+with the same extrapolation applied for BBSR.
+Vega and rho are computed by central finite differences with absolute bumps of $10^{-4}$.
 
+\begin{center}
+\begin{tabular}{lrr}
+    \hline
+    Quantity & CRR & BBSR \\
+    \hline
+    NPV & 21.1250 & 21.1253 \\
+    Delta & 0.5217 & 0.5217 \\
+    Gamma & 0.0060 & 0.0060 \\
+    Theta & -1.0716 & -1.0714 \\
+    Vega & 67.1553 & 67.1565 \\
+    Rho & 85.1443 & 85.1453 \\
+    \hline
+\end{tabular}
+\end{center}
+
+
+\medskip
 \noindent\textbf{2.} For the antithentic method, we used the opposite-sign normal samples as a pair. 
 For the control variate method, we implemented two different control functions, 
 which are the ternimal stock price and the price of corresponding geometric Asian call option.
@@ -27,10 +49,10 @@ which are the ternimal stock price and the price of corresponding geometric Asia
     Method & NPV & MC standard error \\
     \hline
     Plain MC & 5.1914 & 0.0085 \\
-    Control variate (terminal stock price) & 5.1924 & 0.0054 \\
-    Control variate (geometric Asian call) & 5.1983 & 0.0003 \\
+    Control variate (terminal stock price) & 5.1932 & 0.0057 \\
+    Control variate (geometric Asian call) & 5.1984 & 0.0003 \\
     Antithetic MC & 5.1966 & 0.0069 \\
-    Antithetic + control variate (terminal stock price) & 5.1961 & 0.0046 \\
+    Antithetic + control variate (terminal stock price) & 5.1981 & 0.0049 \\
     Antithetic + control variate (geometric Asian call) & 5.1987 & 0.0003 \\
     \hline
 \end{tabular}
