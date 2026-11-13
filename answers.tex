@@ -1,24 +1,17 @@
 \documentclass{article}
 \usepackage{amsmath, amssymb, stmaryrd}
 \usepackage{geometry}
-\geometry{a4paper, margin=1in}
-
+\usepackage{graphicx}
+\geometry{a4paper, margin=0.8in}
 
 
 \begin{document}
-\noindent
-
 \begin{center}
     {\large\textbf{IEOR 221 Assignment 9}}\\
     Group members: Haotian Lan, Hua-Shin Chang, Jiaming Camuseau
 \end{center}
 
-
-
-\noindent\textbf{1.} We used CRR trees with $N=2048, 4096, 8192, 16384, 32768$ time steps.
-For BBSR, we applied Black--Scholes smoothing and Richardson extrapolation,
-using $2V_{2N}-V_N$ from trees with $N$ and $2N$ time steps.
-Vega and rho are computed by central finite differences with absolute bumps of $10^{-4}$.
+\noindent\textbf{1.} The following is the result from CRR tree under different number of steps. Vega and rho are computed by central finite differences with absolute bumps of $10^{-4}$.
 
 \begin{center}
 \textbf{CRR}\\[0.5em]
@@ -26,14 +19,47 @@ Vega and rho are computed by central finite differences with absolute bumps of $
     \hline
     $N$ & NPV & Delta & Gamma & Theta & Vega & Rho \\
     \hline
-    2048 & 21.1236 & 0.5218 & 0.0060 & -1.0722 & 67.1493 & 85.1271 \\
-    4096 & 21.1245 & 0.5217 & 0.0060 & -1.0718 & 67.1536 & 85.1444 \\
-    8192 & 21.1249 & 0.5217 & 0.0060 & -1.0716 & 67.1550 & 85.1444 \\
-    16384 & 21.1251 & 0.5217 & 0.0060 & -1.0715 & 67.1557 & 85.1448 \\
-    32768 & 21.1252 & 0.5217 & 0.0060 & -1.0715 & 67.1561 & 85.1452 \\
+    $2^{11}$ & 21.1236 & 0.5218 & 0.0060 & -1.0722 & 67.1493 & 85.1271 \\
+    $2^{12}$ & 21.1245 & 0.5217 & 0.0060 & -1.0718 & 67.1536 & 85.1444 \\
+    $2^{13}$ & 21.1249 & 0.5217 & 0.0060 & -1.0716 & 67.1550 & 85.1444 \\
+    $2^{14}$ & 21.1251 & 0.5217 & 0.0060 & -1.0715 & 67.1557 & 85.1448 \\
+    $2^{15}$ & 21.1252 & 0.5217 & 0.0060 & -1.0715 & 67.1561 & 85.1452 \\
     \hline
 \end{tabular}
 \end{center}
+
+\indent For the accuracy of the result, we have to look into the asymptotic behavior of the $CRR$ tree.
+First notice that for a payoff with enough smoothness, the price $V_N$ computed from CRR tree using $N$ steps has the asymptotic behavior
+\begin{equation}
+    V_N = V + \frac{C}{N} + o(N^{-1}), \label{CRR_asymptotic}
+\end{equation}
+where $C$ is a constant and $V$ is the true price of the option. In this case, if we let 
+\[
+    D_N = V_N - V = \frac{C}{N} + o(N^{-1}),
+\]
+then
+\[
+    \lim_{N\to\infty}\frac{D_{2N}}{D_N} = 2 \qquad \lim_{N\to\infty} N\cdot D_N = -\frac{C}{2}
+\]
+However, the payoff of the option is not smooth at the strike $K$, and whether $K$ is in the ternimal price grids changes the value of $C$. Since the option is ATM, $K$ is in the ternimal price grids only when $N$ is even. So we have to separate this into cases where $N$ is even and odd. Plotting the graph of $D_{2N} / D_N$ (or $D_{2N+1} / D_N$ if $N$ is odd) and $N D_N$, we have the following.
+\begin{center}
+    \includegraphics[width=\textwidth]{plots/crr_asymptotic_price.png}
+\end{center}
+We can see that $V_N$ does have a similar asymptotic behavior as the smooth case for even and odd $N$, respectively, with $C_{even} \approx -3.52$ and $C_{odd} \approx 1.74$. Hence the error of the result at 32768 steps is approximately $-0.000107$, and the true price should be approximately $21.1253$.\\
+\indent For the delta, gamma, and theta, we see from the following graphs that a similar asymptotic behavior as (\ref{CRR_asymptotic}) is satisfied:
+\begin{center}
+    \includegraphics[width=\textwidth]{plots/crr_asymptotic_delta.png}
+\end{center}
+\begin{center}
+    \includegraphics[width=\textwidth]{plots/crr_asymptotic_gamma.png}
+\end{center}
+\begin{center}
+    \includegraphics[width=\textwidth]{plots/crr_asymptotic_theta.png}
+\end{center}
+Using a similar error analysis, we have delta, gamma, and theta are approximately 0.5217, 0.0060, and -1.0714, respectively.\\
+Finally, for vega and rho, we need to take acount the effect of the bump size $h$, which makes
+
+We also use a BBSR tree to give another estimation of the price and greeks, which shows a better convergance behavior:
 
 \begin{center}
 \textbf{BBSR}\\[0.5em]
@@ -41,15 +67,14 @@ Vega and rho are computed by central finite differences with absolute bumps of $
     \hline
     $N$ & NPV & Delta & Gamma & Theta & Vega & Rho \\
     \hline
-    2048 & 21.1254 & 0.5217 & 0.0060 & -1.0715 & 67.1584 & 85.1632 \\
-    4096 & 21.1254 & 0.5217 & 0.0060 & -1.0714 & 67.1564 & 85.1440 \\
-    8192 & 21.1254 & 0.5217 & 0.0060 & -1.0714 & 67.1564 & 85.1450 \\
-    16384 & 21.1254 & 0.5217 & 0.0060 & -1.0714 & 67.1565 & 85.1456 \\
-    32768 & 21.1254 & 0.5217 & 0.0060 & -1.0714 & 67.1565 & 85.1457 \\
+    $2^{11}$ & 21.1254 & 0.5217 & 0.0060 & -1.0715 & 67.1584 & 85.1632 \\
+    $2^{12}$ & 21.1254 & 0.5217 & 0.0060 & -1.0714 & 67.1564 & 85.1440 \\
+    $2^{13}$ & 21.1253 & 0.5217 & 0.0060 & -1.0714 & 67.1564 & 85.1450 \\
+    $2^{14}$ & 21.1253 & 0.5217 & 0.0060 & -1.0714 & 67.1565 & 85.1456 \\
+    $2^{15}$ & 21.1253 & 0.5217 & 0.0060 & -1.0714 & 67.1565 & 85.1457 \\
     \hline
 \end{tabular}
 \end{center}
-
 
 \medskip
 \noindent\textbf{2.} For the antithentic method, we used the opposite-sign normal samples as a pair. 
