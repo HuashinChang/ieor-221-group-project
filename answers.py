@@ -17,7 +17,7 @@ def _get_p1_parser():
     parser.add_argument("--vol-bump-size", type=float, default=1e-4)
     parser.add_argument("--method", choices=["CRR", "BBSR", 'BBS'], default="CRR")
     parser.add_argument(
-        "--output-dir", type=Path, default=Path(__file__).with_name("plots")
+        "--output-dir", type=Path, default=Path(__file__).with_name("csv")
     )
     parser.add_argument(
         "--max-exp", type=int, default=15,
@@ -102,7 +102,7 @@ def _get_p2_parser():
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument(
-            "--output-dir", type=Path, default=Path(__file__).with_name("plots")
+            "--output-dir", type=Path, default=Path(__file__).with_name("csv")
         )
     return parser
 
