@@ -12,15 +12,14 @@ from mc_asian import MCPricer
 
 
 OUTPUT_DIR = Path(__file__).with_name("plots")
-CI_MULTIPLIER = norm.ppf(0.995)
 
 
-def _export_results(rows, method, label, output_dir):
+def _export_results(rows, method, label, ci, output_dir):
     output_dir.mkdir(parents=True, exist_ok=True)
-    csv_path = output_dir / f"mc_asymptotic_{method}.csv"
+    csv_path = output_dir / f"mc_asymptotic_{method}_0{str(ci)[2:]}.csv"
     with csv_path.open("w", newline="") as output:
         writer = csv.writer(output)
-        writer.writerow(("N paths", "Price", "MC SE", "99% CI lower", "99% CI upper"))
+        writer.writerow(("N paths", "Price", "MC SE", f"{100*ci:.1f}% CI lower", f"{100*ci:.1f}% CI upper"))
         for n_paths, *values in rows:
             writer.writerow((n_paths, *(f"{value:.4f}" for value in values)))
 
@@ -28,12 +27,12 @@ def _export_results(rows, method, label, output_dir):
     figure = Figure(figsize=(9, 6), layout="constrained")
     ax = figure.subplots()
     ax.errorbar(
-        path_counts, prices, yerr=[CI_MULTIPLIER * row[2] for row in rows],
+        path_counts, prices, yerr=[norm.ppf(2 * ci - 1) * row[2] for row in rows],
         marker="o", capsize=3, label="MC price",
     )
     ax.fill_between(
         path_counts, lower_bounds, upper_bounds, alpha=0.25,
-        label="Pointwise asymptotic 99% CI",
+        label=f"Pointwise asymptotic {100*ci:.1f}% CI",
     )
     ax.set_xscale("log", base=2)
     ax.set_xticks(path_counts, [f"$2^{{{n.bit_length() - 1}}}$" for n in path_counts])
@@ -45,7 +44,7 @@ def _export_results(rows, method, label, output_dir):
     )
     ax.grid(True, which="both", alpha=0.25)
     ax.legend()
-    png_path = output_dir / f"mc_asymptotic_{method}.png"
+    png_path = output_dir / f"mc_asymptotic_{method}_0{str(ci)[2:]}.png"
     figure.savefig(png_path, dpi=150)
     print(csv_path)
     print(png_path)
@@ -69,6 +68,10 @@ def main(argv=None):
         "--cv", choices=("geom-asian", "price"),
         help="control variate: geometric Asian payoff or terminal stock price; "
         "omit to disable CV",
+    )
+    parser.add_argument(
+        "--ci", type=float, default= 0.99,
+        help="confident level (default: 0.99)"
     )
     args = parser.parse_args(argv)
     antithetic = args.av == "true"
@@ -107,16 +110,17 @@ def main(argv=None):
         price, standard_error = pricer.run_mc(
             strike=100, dtm=125, antithetic=antithetic, ctrl_var=ctrl_var,
         )
+        CI_MULTIPLIER = norm.ppf(2 * args.ci - 1)
         half_width = CI_MULTIPLIER * standard_error
         lower, upper = price - half_width, price + half_width
         rows.append((n_paths, price, standard_error, lower, upper))
         print(
             f"N={n_paths:,}: price={price:.4f}, SE={standard_error:.4f}, "
-            f"99% CI=[{lower:.4f}, {upper:.4f}]",
+            f"{100 * args.ci:.1f}% CI=[{lower:.4f}, {upper:.4f}]",
             flush=True,
         )
 
-    _export_results(rows, method, label, OUTPUT_DIR)
+    _export_results(rows, method, label, args.ci, OUTPUT_DIR)
 
 
 if __name__ == "__main__":
