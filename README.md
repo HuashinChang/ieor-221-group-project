@@ -5,7 +5,7 @@ Run from the project directory to reproduce the answer with default parameters:
 ```bash
 python answer.py
 ```
-The results is saved in `plots/`. For MC simulation, CUDA is used when available; otherwise, the script runs on CPU.
+CSV results are saved in `csv/`. For MC simulation, CUDA is used when available; otherwise, the script runs on CPU.
 
 You can also run a specific problem with your choice of methods and parameters. For example, use
 
@@ -38,4 +38,6 @@ Run the file `plot_mc_asian_std.py` to generate variance-reduction figures compa
 ```bash
 python plot_mc_asian_std.py
 ```
-All produced figures are saved in `plots/`.
+Figures are saved in `plots/`, and CSV results are saved in `csv/`. For plotting
+scripts that produce both, use `--output-dir` and `--csv-dir` to change their
+respective destinations.
