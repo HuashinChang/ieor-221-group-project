@@ -15,7 +15,7 @@ def _get_p1_parser():
     )
     parser.add_argument("--rate-bump-size", type=float, default=1e-4)
     parser.add_argument("--vol-bump-size", type=float, default=1e-4)
-    parser.add_argument("--method", choices=["CRR", "BBSR", 'CRRS'], default="CRR")
+    parser.add_argument("--method", choices=["CRR", "BBSR", 'BBS'], default="CRR")
     parser.add_argument(
         "--output-dir", type=Path, default=Path(__file__).with_name("plots")
     )
@@ -80,10 +80,10 @@ def _p1(parser: ArgumentParser):
                 **inputs, n_steps=n_steps, bump_size=args.rate_bump_size,
                 bump_param="rate", tree_method=args.method,
             )
-            if args.method == "CRRS":
-                inputs["smoothing"] = "CRRS"
+            if args.method == "BBS":
+                inputs["smoothing"] = True
             price, delta, gamma, theta = pricer(**inputs, n_steps=n_steps)
-            if args.method == "CRRS":
+            if args.method == "BBS":
                 inputs.pop("smoothing")
             rows.append((n_steps, price, delta, gamma, theta, vega, rho))
 

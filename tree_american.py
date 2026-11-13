@@ -131,7 +131,7 @@ def cent_fdm(
     n_steps: int,
     bump_size: float = 1e-4,
     bump_param: Literal['vol', 'rate'],
-    tree_method: Literal['CRR', 'BBSR', 'CRRS'] = 'CRR',
+    tree_method: Literal['CRR', 'BBSR', 'BBS'] = 'CRR',
 ):
     inputs = {
         'stock_spot': stock_spot,
@@ -142,7 +142,7 @@ def cent_fdm(
         'dividend': dividend,
         'n_steps': n_steps
     }
-    if tree_method == 'CRRS':
+    if tree_method == 'BBS':
         inputs["smoothing"] = True
 
     pricer = select_pricer(tree_method)
@@ -156,9 +156,11 @@ def cent_fdm(
     return (up_price - down_price) / (2 * bump_size)
 
 
-def select_pricer(method: Literal['CRR', 'BBSR', 'CRRS']) -> Callable[..., tuple[float, float, float, float]]:
+def select_pricer(
+    method: Literal['CRR', 'BBSR', 'BBS'],
+) -> Callable[..., tuple[float, float, float, float]]:
     if method == 'BBSR':
         return bbsr_american_call
-    if method == 'CRR' or 'CRRS':
+    if method in ('CRR', 'BBS'):
         return crr_american_call
     raise TypeError('Invalid input string.')
