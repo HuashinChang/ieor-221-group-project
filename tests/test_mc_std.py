@@ -19,7 +19,7 @@ INPUT = {
 }
 OPTION = {"strike": 100.0, 'dtm': 125}
 N_REP = 500
-ROOT_SEED = 0
+ROOT_SEED = 4564198
 GATE = {
     "alpha": 0.05, # (1 - 2*alpha) CI
     "width": 0.2 # U = 1 + 0.5*width
@@ -29,13 +29,14 @@ GATE = {
 @pytest.mark.parametrize("cv", ["geom_asian", "stock_price", None])
 def test_mc_native_std_not_underestimate(av, cv):
     root_gen = torch.Generator().manual_seed(ROOT_SEED)
+    seeds = torch.randint(
+            0, 2**63 - 1, (N_REP,), 
+            generator=root_gen, device='cpu').item()
+    pricer = MCPricer(**INPUT)
     prices = []
     varns = []
-    for _ in tqdm(range(N_REP), unit="rep"):
-        seed = torch.randint(
-            0, 2**63 - 1, (1,), 
-            generator=root_gen, device='cpu').item()
-        pricer = MCPricer(**INPUT, seed=seed)
+    for seed in tqdm(seeds, unit="rep"):
+        price.seed = seed
         price, std = pricer.run_mc(
             **OPTION, antithetic=av, ctrl_var=cv, pilot_usage=0.1
         )
