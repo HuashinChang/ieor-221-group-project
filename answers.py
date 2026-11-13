@@ -6,12 +6,12 @@ import csv
 
 def _get_p1_parser():
     parser = ArgumentParser(
-        description="Calculate price and Greeks at doubling tree step counts; save CSV.",
+        description="Compare price and Greeks at N=2**k and N=2**k-1; save CSVs.",
         add_help=False
     )
     parser.add_argument(
-        "--start-n-steps", type=int, default=2**8,
-        help="starting step count (default: 256); multiply by 2 up to max number of step",
+        "--start-exp", type=int, default=11,
+        help="starting exponent k: compare 2**k and 2**k-1 steps (default: 11)",
     )
     parser.add_argument("--rate-bump-size", type=float, default=1e-4)
     parser.add_argument("--vol-bump-size", type=float, default=1e-4)
@@ -20,20 +20,21 @@ def _get_p1_parser():
         "--output-dir", type=Path, default=Path(__file__).with_name("plots")
     )
     parser.add_argument(
-        "--max-n-steps", type=int, default=32768,
-        help="maximun number of step count(default: 32768)"
-        )
+        "--max-exp", type=int, default=15,
+        help="maximum exponent k, inclusive; increase k by 1 (default: 15)"
+    )
     return parser
 
 
-def _export_p1_result(rows, method, output_dir):
+def _export_p1_result(rows, method, output_dir, *, odd=False):
     columns = ("N steps", "NPV", "Delta", "Gamma", "Theta", "Vega", "Rho")
     formatted_rows = [
-        [str(n_steps), *(f"{value:.5f}" for value in values)]
+        [str(n_steps), *(f"{value:.4f}" for value in values)]
         for n_steps, *values in rows
     ]
     output_dir.mkdir(parents=True, exist_ok=True)
-    csv_path = output_dir / f"{method.lower()}_convergence.csv"
+    suffix = "_odd" if odd else "_even"
+    csv_path = output_dir / f"{method.lower()}_convergence{suffix}.csv"
     with csv_path.open("w", newline="") as output:
         writer = csv.writer(output)
         writer.writerow(columns)
@@ -49,16 +50,11 @@ def _p1(parser: ArgumentParser):
 
     args = parser.parse_args()
     
-    max_n_steps = args.max_n_steps
-    if not 4 <= args.start_n_steps <= max_n_steps:
-        parser.error(f"--start-n-steps must be between 4 and {max_n_steps}")
-
-    step_counts = []
-    n_steps = args.start_n_steps
-    while n_steps < max_n_steps:
-        step_counts.append(n_steps)
-        n_steps *= 2
-    step_counts.append(max_n_steps)
+    min_exp = 2 if args.method == "CRR" else 3
+    if args.start_exp < min_exp:
+        parser.error(f"--start-exp must be at least {min_exp} for {args.method}")
+    if args.max_exp < args.start_exp:
+        parser.error("--max-exp must be at least --start-exp")
 
     inputs = {
         "stock_spot": 100.0,
@@ -70,26 +66,29 @@ def _p1(parser: ArgumentParser):
     }
 
     pricer = select_pricer(args.method)
-    rows = []
-    for n_steps in step_counts:
-        print(f"Calculating {args.method} at N={n_steps:,}...", flush=True)
-        vega = cent_fdm(
-            **inputs, n_steps=n_steps, bump_size=args.vol_bump_size,
-            bump_param="vol", tree_method=args.method,
-        )
-        rho = cent_fdm(
-            **inputs, n_steps=n_steps, bump_size=args.rate_bump_size,
-            bump_param="rate", tree_method=args.method,
-        )
-        if args.method == "CRRS":
-            inputs["smoothing"] = "CRRS"
-        price, delta, gamma, theta = pricer(**inputs, n_steps=n_steps)
-        if args.method == "CRRS":
-            inputs.pop("smoothing")
-        rows.append((n_steps, price, delta, gamma, theta, vega, rho))
-        
-    print("")
-    _export_p1_result(rows, args.method, args.output_dir)
+    for parity, offset in (("Even", 0), ("Odd", 1)):
+        print(f"\n{parity} steps:")
+        rows = []
+        for exponent in range(args.start_exp, args.max_exp + 1):
+            n_steps = 2**exponent - offset
+            print(f"Calculating {args.method} at N={n_steps:,}...", flush=True)
+            vega = cent_fdm(
+                **inputs, n_steps=n_steps, bump_size=args.vol_bump_size,
+                bump_param="vol", tree_method=args.method,
+            )
+            rho = cent_fdm(
+                **inputs, n_steps=n_steps, bump_size=args.rate_bump_size,
+                bump_param="rate", tree_method=args.method,
+            )
+            if args.method == "CRRS":
+                inputs["smoothing"] = "CRRS"
+            price, delta, gamma, theta = pricer(**inputs, n_steps=n_steps)
+            if args.method == "CRRS":
+                inputs.pop("smoothing")
+            rows.append((n_steps, price, delta, gamma, theta, vega, rho))
+
+        print("")
+        _export_p1_result(rows, args.method, args.output_dir, odd=offset == 1)
     vanilla_price = bsm_call_price(**inputs)
     print(f"\nCorresponding European call price: {vanilla_price:.5f}")
     
