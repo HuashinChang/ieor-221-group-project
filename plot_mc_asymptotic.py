@@ -16,10 +16,14 @@ OUTPUT_DIR = Path(__file__).with_name("plots")
 
 def _export_results(rows, method, label, ci, output_dir):
     output_dir.mkdir(parents=True, exist_ok=True)
-    csv_path = output_dir / f"mc_asymptotic_{method}_0{str(ci)[2:]}.csv"
+    csv_path = output_dir / f"mc_asym_{method}_0{str(ci)[2:]}.csv"
     with csv_path.open("w", newline="") as output:
         writer = csv.writer(output)
-        writer.writerow(("N paths", "Price", "MC SE", f"{100*ci:.1f}% CI lower", f"{100*ci:.1f}% CI upper"))
+        writer.writerow((
+            "N paths", "Price", "MC SE", 
+            f"{100*ci}% CI lower",
+            f"{100*ci}% CI upper"
+        ))
         for n_paths, *values in rows:
             writer.writerow((n_paths, *(f"{value:.4f}" for value in values)))
 
@@ -32,7 +36,7 @@ def _export_results(rows, method, label, ci, output_dir):
     )
     ax.fill_between(
         path_counts, lower_bounds, upper_bounds, alpha=0.25,
-        label=f"Pointwise asymptotic {100*ci:.1f}% CI",
+        label=f"Pointwise asymptotic {100*ci}% CI",
     )
     ax.set_xscale("log", base=2)
     ax.set_xticks(path_counts, [f"$2^{{{n.bit_length() - 1}}}$" for n in path_counts])
@@ -44,7 +48,7 @@ def _export_results(rows, method, label, ci, output_dir):
     )
     ax.grid(True, which="both", alpha=0.25)
     ax.legend()
-    png_path = output_dir / f"mc_asymptotic_{method}_0{str(ci)[2:]}.png"
+    png_path = output_dir / f"mc_asym_{method}_0{str(ci)[2:]}.png"
     figure.savefig(png_path, dpi=150)
     print(csv_path)
     print(png_path)
@@ -84,6 +88,8 @@ def main(argv=None):
         )
     if args.end_exp < args.start_exp:
         parser.error("--end-exp must be at least --start-exp")
+    if args.ci >= 1 or args.ci < 0:
+        parser.error("--ci must be in [0, 1)") 
 
     ctrl_var = {"geom-asian": "geom_asian", "price": "stock_prices"}.get(args.cv)
     method = "av" if antithetic else "plain"
@@ -116,7 +122,7 @@ def main(argv=None):
         rows.append((n_paths, price, standard_error, lower, upper))
         print(
             f"N={n_paths:,}: price={price:.4f}, SE={standard_error:.4f}, "
-            f"{100 * args.ci:.1f}% CI=[{lower:.4f}, {upper:.4f}]",
+            f"{100 * args.ci}% CI=[{lower:.4f}, {upper:.4f}]",
             flush=True,
         )
 
