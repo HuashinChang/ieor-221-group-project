@@ -4,6 +4,9 @@ r_est is the empirical standard deviation of repeated MC prices divided by
 the root mean square of their reported standard errors. Each method gets a
 separate PNG in plots/ and CSV in csv/. Path budgets include both antithetic paths
 and any control-variate pilot paths.
+
+CI bounds must lie strictly inside (1/ub, ub). The stability ratio is the sample
+SD of native SEs divided by their mean, with a threshold of 0.005.
 """
 
 import argparse
@@ -22,6 +25,7 @@ from mc_asian import MCPricer
 
 OUTPUT_DIR = Path(__file__).with_name("plots")
 CSV_DIR = Path(__file__).with_name("csv")
+STABILITY_THRESHOLD = 0.005
 
 
 def _control_variate(value):
@@ -49,11 +53,13 @@ def _estimate_ratio(pricer, seeds, antithetic, ctrl_var, ci):
         raise ValueError("The RMS native standard error must be positive")
 
     r_est = empirical_std / native_std
+    native_stds = np.sqrt(variances)
+    stability_ratio = float(np.std(native_stds, ddof=1) / np.mean(native_stds))
     df = len(seeds) - 1
     alpha = (1 - ci) / 2
     lower = r_est * math.sqrt(df / chi2.ppf(1 - alpha, df=df))
     upper = r_est * math.sqrt(df / chi2.ppf(alpha, df=df))
-    return empirical_std, native_std, r_est, lower, upper
+    return empirical_std, native_std, r_est, lower, upper, stability_ratio
 
 
 def _export_results(rows, method, label, args, ci):
@@ -69,8 +75,8 @@ def _export_results(rows, method, label, args, ci):
     estimates = [row["r_est"] for row in rows]
     lower_bounds = [row["ci_lower"] for row in rows]
     upper_bounds = [row["ci_upper"] for row in rows]
-    figure = Figure(figsize=(9, 6), layout="constrained")
-    ax = figure.subplots()
+    figure = Figure(figsize=(9, 9), layout="constrained")
+    ax, stability_ax = figure.subplots(2, 1, sharex=True)
     ax.plot(path_counts, estimates, marker="o", label="r_est")
     ax.vlines(
         path_counts, lower_bounds, upper_bounds, color="tab:blue",
@@ -78,16 +84,18 @@ def _export_results(rows, method, label, args, ci):
     )
     ax.fill_between(path_counts, lower_bounds, upper_bounds, alpha=0.2)
     ax.axhline(1, color="black", linestyle=":", label="r_est = 1")
-    threshold = 1 + args.width / 2
     ax.axhline(
-        threshold, color="tab:red", linestyle="--",
-        label=f"Upper-CI threshold = {threshold:g}",
+        args.ub, color="tab:red", linestyle="--",
+        label=f"Upper-CI threshold (ub) = {args.ub:g}",
+    )
+    ax.axhline(
+        1 / args.ub, color="tab:orange", linestyle="--",
+        label=f"Lower-CI threshold (1/ub) = {1 / args.ub:g}",
     )
     ax.set_xscale("log", base=2)
     ax.set_xticks(
         path_counts, [f"$2^{{{n.bit_length() - 1}}}$" for n in path_counts],
     )
-    ax.set_xlabel("Total simulated paths per replicate (including CV pilot paths)")
     ax.set_ylabel("r_est = empirical price SD / RMS native SE")
     ax.set_title(
         f"{label}: standard-error calibration ({args.n_rep} replicates)\n"
@@ -95,6 +103,20 @@ def _export_results(rows, method, label, args, ci):
     )
     ax.grid(True, which="both", alpha=0.25)
     ax.legend()
+    stability_ax.plot(
+        path_counts, [row["stability_ratio"] for row in rows], marker="o",
+        label="Stability ratio",
+    )
+    stability_ax.axhline(
+        STABILITY_THRESHOLD, color="tab:red", linestyle="--",
+        label=f"Stability threshold = {STABILITY_THRESHOLD:g}",
+    )
+    stability_ax.set_xlabel(
+        "Total simulated paths per replicate (including CV pilot paths)"
+    )
+    stability_ax.set_ylabel("Sample SD of native SE / mean native SE")
+    stability_ax.grid(True, which="both", alpha=0.25)
+    stability_ax.legend()
     png_path = args.output_dir / f"mc_std_ci_0{str(100*ci)[2:]}_{method}.png"
     figure.savefig(png_path, dpi=150)
     print(csv_path)
@@ -109,8 +131,8 @@ def main(argv=None):
         help="Torch device (default: cuda when available, otherwise cpu)",
     )
     parser.add_argument(
-        "--width", type=float, default=0.2,
-        help="require CI upper bound < 1 + width / 2 (default: 0.2)",
+        "--ub", type=float, default=1.2,
+        help="require CI lower > 1/ub and CI upper < ub (default: 1.2)",
     )
     parser.add_argument(
         "--ci", "--ci-level", dest="ci", type=float, default=0.9,
@@ -143,8 +165,8 @@ def main(argv=None):
 
     if not 0 < args.ci < 1:
         parser.error("--ci must be between 0 and 1, exclusive")
-    if not math.isfinite(args.width) or args.width <= 0:
-        parser.error("--width must be finite and positive")
+    if not math.isfinite(args.ub) or args.ub <= 1:
+        parser.error("--ub must be finite and greater than 1")
     if args.n_rep < 2:
         parser.error("--n-rep must be at least 2")
     if args.end_exp < args.start_exp:
@@ -166,9 +188,11 @@ def main(argv=None):
     seeds = torch.randint(
         0, 2**63 - 1, (args.n_rep,), generator=root_gen, device="cpu",
     ).tolist()
+    lb = 1 / args.ub
     print(
         f"seed={args.seed}; device={device}; replicates={args.n_rep}; "
-        f"CI={args.ci:g}; width={args.width:g}", flush=True,
+        f"CI={args.ci:g}; ub={args.ub:g}; lb=1/ub={lb:g}; "
+        f"stability threshold={STABILITY_THRESHOLD:g}", flush=True,
     )
     for antithetic in av_choices:
         for ctrl_var in cv_choices:
@@ -182,10 +206,13 @@ def main(argv=None):
             for exponent in range(args.start_exp, args.end_exp + 1):
                 n_paths = 2**exponent
                 pricer.n_samples = n_paths // 2 if antithetic else n_paths
-                empirical_std, native_std, r_est, lower, upper = _estimate_ratio(
-                    pricer, seeds, antithetic, ctrl_var, args.ci,
-                )
-                threshold = 1 + args.width / 2
+                (
+                    empirical_std, native_std, r_est, lower, upper,
+                    stability_ratio,
+                ) = _estimate_ratio(pricer, seeds, antithetic, ctrl_var, args.ci)
+                lower_above_threshold = bool(lower > lb)
+                upper_below_threshold = bool(upper < args.ub)
+                stable = bool(stability_ratio < STABILITY_THRESHOLD)
                 rows.append({
                     "n_paths": n_paths,
                     "n_samples": pricer.n_samples,
@@ -195,19 +222,29 @@ def main(argv=None):
                     "av": antithetic,
                     "cv": ctrl_var or "none",
                     "ci_level": args.ci,
-                    "width": args.width,
+                    "ub": args.ub,
+                    "lb": lb,
                     "s_emp": empirical_std,
                     "s_native": native_std,
                     "r_est": r_est,
                     "ci_lower": lower,
                     "ci_upper": upper,
-                    "upper_threshold": threshold,
-                    "upper_below_threshold": bool(upper < threshold),
+                    "lower_above_threshold": lower_above_threshold,
+                    "upper_below_threshold": upper_below_threshold,
+                    "ci_within_bounds": (
+                        lower_above_threshold and upper_below_threshold
+                    ),
+                    "stability_ratio": stability_ratio,
+                    "stability_threshold": STABILITY_THRESHOLD,
+                    "stable": stable,
                 })
                 print(
                     f"{label}; N={n_paths:,}: r_est={r_est:.4f}, "
                     f"{args.ci:.1%} CI=[{lower:.4f}, {upper:.4f}], "
-                    f"upper < {threshold:g}: {upper < threshold}", flush=True,
+                    f"lower > lb ({lb:g}): {lower_above_threshold}, "
+                    f"upper < ub ({args.ub:g}): {upper_below_threshold}, "
+                    f"stability ratio={stability_ratio:.6g} "
+                    f"(< {STABILITY_THRESHOLD:g}: {stable})", flush=True,
                 )
             _export_results(rows, method, label, args, args.ci)
 
