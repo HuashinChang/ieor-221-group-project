@@ -65,27 +65,27 @@ def main(output_dir=OUTPUT_DIR):
     for moneyness, strike in STRIKES.items():
         figure = Figure(figsize=(8, 5.5), layout="constrained")
         ax = figure.subplots()
-        stds_by_policy = {}
+        ses_by_policy = {}
         for policy, antithetic, ctrl_var in VARIANCE_REDUCTION:
-            stds = []
+            ses = []
             for total_paths in TOTAL_PATH_COUNTS:
                 # Each antithetic sample uses two paths within the same budget.
                 pricer.n_samples = total_paths // 2 if antithetic else total_paths
-                _, mc_std = pricer.run_mc(
+                _, mc_se = pricer.run_mc(
                     strike, dtm, antithetic=antithetic, ctrl_var=ctrl_var
                 )
-                stds.append(mc_std)
-            stds_by_policy[policy] = stds
-            ax.loglog(TOTAL_PATH_COUNTS, stds, marker="o", label=policy)
+                ses.append(mc_se)
+            ses_by_policy[policy] = ses
+            ax.loglog(TOTAL_PATH_COUNTS, ses, marker="o", label=policy)
 
         # Square standard-error ratios to compare estimator variances, then average.
-        plain_stds = stds_by_policy["Plain"]
+        plain_ses = ses_by_policy["Plain"]
         mean_ratios[moneyness] = {
             policy: math.fsum(
-                (plain_std / method_std) ** 2
-                for plain_std, method_std in zip(plain_stds, stds)
+                (plain_se / method_se) ** 2
+                for plain_se, method_se in zip(plain_ses, ses)
             ) / len(TOTAL_PATH_COUNTS)
-            for policy, stds in stds_by_policy.items()
+            for policy, ses in ses_by_policy.items()
         }
 
         ax.set_title(f"{moneyness} Asian call (strike {strike})")
@@ -95,7 +95,7 @@ def main(output_dir=OUTPUT_DIR):
         ax.set_ylabel("MC price standard error")
         ax.grid(True, which="both", alpha=0.25)
         ax.legend()
-        path = output_dir / f"mc_std_{moneyness.lower()}.png"
+        path = output_dir / f"mc_se_{moneyness.lower()}.png"
         figure.savefig(path, dpi=150)
         print(path)
 

@@ -32,19 +32,19 @@ python plot_tree_asymptotic.py
 
 This produces graphs for inspecting the asymptotic behavior of the CRR tree.
 
-Run the file `plot_mc_amethod_std_compare.py` to generate variance-reduction figures comparing the mc variance from different methods:
+Run the file `plot_mc_method_se_compare.py` to generate variance-reduction figures comparing the mc variance from different methods:
 
 ```bash
-python plot_mc_amethod_std_compare.py
+python plot_mc_method_se_compare.py
 ```
 
 To inspect deeper into the behavior of the MC standard error calculated from the sampled paths, run 
 
 ```bash
-python plot_mc_std_ci.py
+python plot_mc_se_ci.py
 ```
 
-This takes a while to run, and it provides a basic statistic check for the approximation quality of the native MC std to the true MC standard deviation.
+This takes a while to run, and it provides a basic statistic check for the approximation quality of the native MC SE to the true MC standard deviation.
 
 To see how the result of MC estimator changes with respect to number of samples, run
 

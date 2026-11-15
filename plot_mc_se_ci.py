@@ -1,4 +1,4 @@
-"""Plot pointwise chi-square CIs for r_est, as in tests/test_mc_std.py.
+"""Plot pointwise chi-square CIs for r_est, as in tests/test_mc_se.py.
 
 r_est is the empirical standard deviation of repeated MC prices divided by
 the root mean square of their reported standard errors. Each method gets a
@@ -45,27 +45,27 @@ def _estimate_ratio(pricer, seeds, antithetic, ctrl_var, ci):
         prices.append(price)
         variances.append(standard_error**2)
 
-    empirical_std = float(np.std(prices, ddof=1))
-    native_std = math.sqrt(float(np.mean(variances)))
-    if not math.isfinite(empirical_std) or not math.isfinite(native_std):
+    empirical_sd = float(np.std(prices, ddof=1))
+    native_se = math.sqrt(float(np.mean(variances)))
+    if not math.isfinite(empirical_sd) or not math.isfinite(native_se):
         raise ValueError("MC prices or standard errors produced nonfinite statistics")
-    if native_std <= 0:
+    if native_se <= 0:
         raise ValueError("The RMS native standard error must be positive")
 
-    r_est = empirical_std / native_std
-    native_stds = np.sqrt(variances)
-    stability_ratio = float(np.std(native_stds, ddof=1) / np.mean(native_stds))
+    r_est = empirical_sd / native_se
+    native_ses = np.sqrt(variances)
+    stability_ratio = float(np.std(native_ses, ddof=1) / np.mean(native_ses))
     df = len(seeds) - 1
     alpha = (1 - ci) / 2
     lower = r_est * math.sqrt(df / chi2.ppf(1 - alpha, df=df))
     upper = r_est * math.sqrt(df / chi2.ppf(alpha, df=df))
-    return empirical_std, native_std, r_est, lower, upper, stability_ratio
+    return empirical_sd, native_se, r_est, lower, upper, stability_ratio
 
 
 def _export_results(rows, method, label, args, ci):
     args.output_dir.mkdir(parents=True, exist_ok=True)
     args.csv_dir.mkdir(parents=True, exist_ok=True)
-    csv_path = args.csv_dir / f"mc_std_ci_0{str(100*ci)[2:]}_{method}.csv"
+    csv_path = args.csv_dir / f"mc_se_ci_0{str(100*ci)[2:]}_{method}.csv"
     with csv_path.open("w", newline="") as output:
         writer = csv.DictWriter(output, fieldnames=list(rows[0]))
         writer.writeheader()
@@ -117,7 +117,7 @@ def _export_results(rows, method, label, args, ci):
     stability_ax.set_ylabel("Sample SD of native SE / mean native SE")
     stability_ax.grid(True, which="both", alpha=0.25)
     stability_ax.legend()
-    png_path = args.output_dir / f"mc_std_ci_0{str(100*ci)[2:]}_{method}.png"
+    png_path = args.output_dir / f"mc_se_ci_0{str(100*ci)[2:]}_{method}.png"
     figure.savefig(png_path, dpi=150)
     print(csv_path)
     print(png_path)
@@ -207,7 +207,7 @@ def main(argv=None):
                 n_paths = 2**exponent
                 pricer.n_samples = n_paths // 2 if antithetic else n_paths
                 (
-                    empirical_std, native_std, r_est, lower, upper,
+                    empirical_sd, native_se, r_est, lower, upper,
                     stability_ratio,
                 ) = _estimate_ratio(pricer, seeds, antithetic, ctrl_var, args.ci)
                 lower_above_threshold = bool(lower > lb)
@@ -224,8 +224,8 @@ def main(argv=None):
                     "ci_level": args.ci,
                     "ub": args.ub,
                     "lb": lb,
-                    "s_emp": empirical_std,
-                    "s_native": native_std,
+                    "s_emp": empirical_sd,
+                    "s_native": native_se,
                     "r_est": r_est,
                     "ci_lower": lower,
                     "ci_upper": upper,

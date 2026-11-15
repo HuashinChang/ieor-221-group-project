@@ -54,7 +54,7 @@ class MCPricer:
                 control coefficient. Effective only when `ctrl_var` is not `None`.
 
         Returns:
-            A tuple ``(npv, std)`` of Python floats. 
+            A tuple ``(npv, se)`` of Python floats. 
         """
         N = int(self.n_samples) * 2 if antithetic else int(self.n_samples)
         stock_prices = self.stock_spot * torch.ones(N, device=self.device)
@@ -96,8 +96,8 @@ class MCPricer:
             )
         
         npv = torch.mean(final_samples)
-        std = torch.std(final_samples, correction=1) / math.sqrt(final_samples.size(dim=0))
-        return npv.item(), std.item()
+        se = torch.std(final_samples, correction=1) / math.sqrt(final_samples.size(dim=0))
+        return npv.item(), se.item()
 
     def _iterable(self, dtm: int) -> Iterable:
         if self.verbose:

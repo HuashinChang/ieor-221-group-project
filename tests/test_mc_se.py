@@ -24,13 +24,13 @@ GATE = {
     "UPPER": 1.2 # L = 1 / U
 }
 STABILITY_CONST = 0.005
-# for checking if n_samples is large enough to make estimator of std stable
-# stable if std(std_native) / mean(std_native) < STABILITY_CONST
+# for checking if n_samples is large enough to make estimator of se stable
+# stable if SD(se_native) / mean(se_native) < STABILITY_CONST
 
 @pytest.mark.parametrize("root_seed", [165, 41619, 98889], ids=["sd1", "sd2", "sd3"])
 @pytest.mark.parametrize("av", [True, False])
 @pytest.mark.parametrize("cv", ["geom_asian", "stock_price", None])
-def test_mc_native_std_not_underestimate(av, cv, root_seed):
+def test_mc_native_se_not_underestimate(av, cv, root_seed):
     root_gen = torch.Generator().manual_seed(root_seed)
     seeds = torch.randint(
             0, 2**63 - 1, (N_REP,), 
@@ -46,21 +46,21 @@ def test_mc_native_std_not_underestimate(av, cv, root_seed):
     
     for seed in tqdm(seeds, unit="rep"):
         pricer.seed = seed
-        price, std = pricer.run_mc(
+        price, se = pricer.run_mc(
             **OPTION, antithetic=av, ctrl_var=cv, pilot_usage=0.1
         )
         prices.append(price)
-        varns.append(std**2) 
+        varns.append(se**2) 
     prices = np.array(prices)
     varns = np.array(varns)
 
-    stds = np.sqrt(varns)
-    stable_ratio = np.std(stds, ddof=1).item() / np.mean(stds).item() 
+    ses = np.sqrt(varns)
+    stable_ratio = np.std(ses, ddof=1).item() / np.mean(ses).item() 
 
     s_emp = np.std(prices, ddof=1).item()
     s_native = math.sqrt(np.mean(varns).item())    
     r_est = s_emp / s_native 
-    # r_est > 1 => native std underestimates
+    # r_est > 1 => native se underestimates
     df = N_REP - 1
     lower = r_est * math.sqrt(df / chi2.ppf(1 - GATE['alpha'], df=df))
     upper = r_est * math.sqrt(df / chi2.ppf(GATE['alpha'], df=df))

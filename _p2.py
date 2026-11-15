@@ -10,7 +10,7 @@ def get_p2_parser():
         description=(
             "Price the arithmetic Asian call with six MC configurations: plain MC, "
             "two control variates, and their three antithetic counterparts. "
-            "Print NPV and estimated standard error (std), and save a CSV."
+            "Print NPV and estimated standard error (se), and save a CSV."
         ),
     )
     parser.add_argument(
@@ -44,7 +44,7 @@ def get_p2_parser():
 
 def _export_p2_results(rows, n_paths, output_dir):
     
-    columns = ("Method", "NPV", "std")
+    columns = ("Method", "NPV", "se")
     formatted_rows = [
         [str(n_steps), *(f"{value:.5f}" for value in values)]
         for n_steps, *values in rows
@@ -56,9 +56,9 @@ def _export_p2_results(rows, n_paths, output_dir):
         writer.writerow(columns)
         writer.writerows(formatted_rows)
 
-    print(f"\n{'Method':<32} {'NPV':>12} {'std':>12}")
-    for method, npv, std in rows:
-        print(f"{method:<32} {npv:>12.4f} {std:>12.4f}")
+    print(f"\n{'Method':<32} {'NPV':>12} {'se':>12}")
+    for method, npv, se in rows:
+        print(f"{method:<32} {npv:>12.4f} {se:>12.4f}")
 
 
 def p2(args):
@@ -89,29 +89,29 @@ def p2(args):
     rows = []
 
     print("Calculating Plain MC...", flush=True)
-    npv, std = pricer.run_mc(**contract)
-    rows.append(("Plain MC", npv, std))
+    npv, se = pricer.run_mc(**contract)
+    rows.append(("Plain MC", npv, se))
 
     print("Calculating Control variate (stock_prices)...", flush=True)
-    npv, std = pricer.run_mc(**contract, ctrl_var='stock_prices')
-    rows.append(("Control variate (stock_prices)", npv, std))
+    npv, se = pricer.run_mc(**contract, ctrl_var='stock_prices')
+    rows.append(("Control variate (stock_prices)", npv, se))
 
     print("Calculating Control variate (geom_asian)...", flush=True)
-    npv, std = pricer.run_mc(**contract, ctrl_var='geom_asian')
-    rows.append(("Control variate (geom_asian)", npv, std))
+    npv, se = pricer.run_mc(**contract, ctrl_var='geom_asian')
+    rows.append(("Control variate (geom_asian)", npv, se))
 
     pricer.n_samples = int(mc_spec['n_samples'] / 2)
     print("Calculating Antithetic...", flush=True)
-    npv, std = pricer.run_mc(**contract, antithetic=True)
-    rows.append(("Antithetic", npv, std))
+    npv, se = pricer.run_mc(**contract, antithetic=True)
+    rows.append(("Antithetic", npv, se))
 
     print("Calculating Antithetic + CV (stock_prices)...", flush=True)
-    npv, std = pricer.run_mc(**contract, antithetic=True, ctrl_var='stock_prices')
-    rows.append(("Antithetic + CV (stock_prices)", npv, std))
+    npv, se = pricer.run_mc(**contract, antithetic=True, ctrl_var='stock_prices')
+    rows.append(("Antithetic + CV (stock_prices)", npv, se))
 
     print("Calculating Antithetic + CV (geom_asian)...", flush=True)
-    npv, std = pricer.run_mc(**contract, antithetic=True, ctrl_var='geom_asian')
-    rows.append(("Antithetic + CV (geom_asian)", npv, std))
+    npv, se = pricer.run_mc(**contract, antithetic=True, ctrl_var='geom_asian')
+    rows.append(("Antithetic + CV (geom_asian)", npv, se))
 
     vanilla_price = bsm_european_call(
         **mkt_cond, 
