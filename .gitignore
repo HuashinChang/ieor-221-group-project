@@ -6,3 +6,4 @@ plots/
 *.log
 *.synctex.gz
 answers.pdf
+csv/

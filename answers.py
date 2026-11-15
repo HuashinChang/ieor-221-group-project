@@ -1,4 +1,5 @@
-from argparse import ArgumentParser
+from argparse import ArgumentParser, RawDescriptionHelpFormatter
+import sys
 import torch
 from pathlib import Path
 import csv
@@ -6,22 +7,57 @@ import csv
 
 def _get_p1_parser():
     parser = ArgumentParser(
-        description="Compare price and Greeks at N=2**k and N=2**k-1; save CSVs.",
+        description=(
+            "Calculate American call prices and Greeks; print tables and save CSVs. "
+            "By default, run CRR and BBSR at even step counts N=2**k."
+        ),
         add_help=False
     )
     parser.add_argument(
         "--start-exp", type=int, default=11,
-        help="starting exponent k: compare 2**k and 2**k-1 steps (default: 11)",
+        help=(
+            "first exponent k (default: %(default)s); even N=2**k, odd N=2**k-1; "
+            "minimum 2 for CRR, 3 when BBS or BBSR runs"
+        ),
     )
-    parser.add_argument("--rate-bump-size", type=float, default=1e-4)
-    parser.add_argument("--vol-bump-size", type=float, default=1e-4)
-    parser.add_argument("--method", choices=["CRR", "BBSR", 'BBS'], default="CRR")
     parser.add_argument(
-        "--output-dir", type=Path, default=Path(__file__).with_name("csv")
+        "--rate-bump-size", type=float, default=1e-4,
+        help="absolute rate bump for central-difference Rho (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--vol-bump-size", type=float, default=1e-4,
+        help=(
+            "absolute volatility bump for central-difference Vega "
+            "(default: %(default)s)"
+        ),
+    )
+    parser.add_argument(
+        "--method", choices=["CRR", "BBSR", "BBS"],
+        help=(
+            "run one method instead of both CRR and BBSR; BBS uses smoothing, "
+            "BBSR adds Richardson extrapolation; --odd overrides this with CRR"
+        ),
+    )
+    parser.add_argument(
+        "--odd", choices=["include", "only"],
+        help=(
+            "run CRR only: include outputs both even and odd results, "
+            "only outputs odd results; omit for even results only"
+        ),
+    )
+    parser.add_argument(
+        "--output-dir", type=Path, default=Path(__file__).with_name("csv"),
+        help=(
+            "CSV directory (default: %(default)s); create it if needed; "
+            "overwrite {method}_convergence_even.csv or _odd.csv for each result"
+        ),
     )
     parser.add_argument(
         "--max-exp", type=int, default=15,
-        help="maximum exponent k, inclusive; increase k by 1 (default: 15)"
+        help=(
+            "last exponent k, inclusive (default: %(default)s); "
+            "increase k by 1, so step counts approximately double"
+        ),
     )
     return parser
 
@@ -45,14 +81,24 @@ def _export_p1_result(rows, method, output_dir, *, odd=False):
         print(" ".join(f"{value:>12}" for value in row))
 
 
-def _p1(parser: ArgumentParser):
+def _p1(args, parser: ArgumentParser):
     from tree_american import select_pricer, cent_fdm, bsm_call_price
 
-    args = parser.parse_args()
-    
-    min_exp = 2 if args.method == "CRR" else 3
+    if args.odd:
+        methods = ["CRR"]
+    elif args.method:
+        methods = [args.method]
+    else:
+        methods = ["CRR", "BBSR"]
+    parities = (("Even", 0),)
+    if args.odd == "include":
+        parities = (("Even", 0), ("Odd", 1))
+    elif args.odd == "only":
+        parities = (("Odd", 1),)
+
+    min_exp = 2 if methods == ["CRR"] else 3
     if args.start_exp < min_exp:
-        parser.error(f"--start-exp must be at least {min_exp} for {args.method}")
+        parser.error(f"--start-exp must be at least {min_exp} for {', '.join(methods)}")
     if args.max_exp < args.start_exp:
         parser.error("--max-exp must be at least --start-exp")
 
@@ -65,30 +111,31 @@ def _p1(parser: ArgumentParser):
         "dividend": 0.08,
     }
 
-    pricer = select_pricer(args.method)
-    for parity, offset in (("Even", 0), ("Odd", 1)):
-        print(f"\n{parity} steps:")
-        rows = []
-        for exponent in range(args.start_exp, args.max_exp + 1):
-            n_steps = 2**exponent - offset
-            print(f"Calculating {args.method} at N={n_steps:,}...", flush=True)
-            vega = cent_fdm(
-                **inputs, n_steps=n_steps, bump_size=args.vol_bump_size,
-                bump_param="vol", tree_method=args.method,
-            )
-            rho = cent_fdm(
-                **inputs, n_steps=n_steps, bump_size=args.rate_bump_size,
-                bump_param="rate", tree_method=args.method,
-            )
-            if args.method == "BBS":
-                inputs["smoothing"] = True
-            price, delta, gamma, theta = pricer(**inputs, n_steps=n_steps)
-            if args.method == "BBS":
-                inputs.pop("smoothing")
-            rows.append((n_steps, price, delta, gamma, theta, vega, rho))
+    for method in methods:
+        pricer = select_pricer(method)
+        for parity, offset in parities:
+            print(f"\n{method}, {parity.lower()} steps:")
+            rows = []
+            for exponent in range(args.start_exp, args.max_exp + 1):
+                n_steps = 2**exponent - offset
+                print(f"Calculating {method} at N={n_steps:,}...", flush=True)
+                vega = cent_fdm(
+                    **inputs, n_steps=n_steps, bump_size=args.vol_bump_size,
+                    bump_param="vol", tree_method=method,
+                )
+                rho = cent_fdm(
+                    **inputs, n_steps=n_steps, bump_size=args.rate_bump_size,
+                    bump_param="rate", tree_method=method,
+                )
+                if method == "BBS":
+                    inputs["smoothing"] = True
+                price, delta, gamma, theta = pricer(**inputs, n_steps=n_steps)
+                if method == "BBS":
+                    inputs.pop("smoothing")
+                rows.append((n_steps, price, delta, gamma, theta, vega, rho))
 
-        print("")
-        _export_p1_result(rows, args.method, args.output_dir, odd=offset == 1)
+            print("")
+            _export_p1_result(rows, method, args.output_dir, odd=offset == 1)
     vanilla_price = bsm_call_price(**inputs)
     print(f"\nCorresponding European call price: {vanilla_price:.5f}")
     
@@ -96,14 +143,38 @@ def _p1(parser: ArgumentParser):
 def _get_p2_parser():
     parser = ArgumentParser(
         add_help=False,
-        description="Run MC simulation in every implemented method."
+        description=(
+            "Price the arithmetic Asian call with six MC configurations: plain MC, "
+            "two control variates, and their three antithetic counterparts. "
+            "Print NPV and estimated standard error (MC std), and save a CSV."
+        ),
     )
-    parser.add_argument("--n-paths", type=int, default=2**20)
-    parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
-    parser.add_argument("--seed", type=int, default=0)
     parser.add_argument(
-            "--output-dir", type=Path, default=Path(__file__).with_name("csv")
-        )
+        "--n-paths", type=int, default=2**20,
+        help=(
+            "total simulated paths per method as an integer (default: %(default)s); "
+            "antithetic methods use floor(n_paths/2) independent pairs"
+        ),
+    )
+    parser.add_argument(
+        "--device", type=str,
+        default="cuda" if torch.cuda.is_available() else "cpu",
+        help=(
+            "PyTorch device, e.g. cpu, cuda, cuda:0; "
+            "default: CUDA when available, otherwise CPU (currently: %(default)s)"
+        ),
+    )
+    parser.add_argument(
+        "--seed", type=int, default=0,
+        help="random seed for reproducible simulation (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--output-dir", type=Path, default=Path(__file__).with_name("csv"),
+        help=(
+            "CSV directory (default: %(default)s); create it if needed; "
+            "overwrite mc_with_{n_paths}_paths.csv"
+        ),
+    )
     return parser
 
 
@@ -126,10 +197,9 @@ def _export_p2_results(rows, n_paths, output_dir):
         print(f"{method:<32} {npv:>12.4f} {std:>12.4f}")
 
 
-def _p2(parser: ArgumentParser):
+def _p2(args):
     from mc_asian import MCPricer, bsm_european_call
 
-    args = parser.parse_args()
     mkt_cond = {
         'stock_spot': 100,
         'dividend': 0.08,
@@ -150,7 +220,6 @@ def _p2(parser: ArgumentParser):
         f"Simulation info: total paths={args.n_paths:,}, "
         f"seed={args.seed}, device={mc_spec['device']}."
     )
-    print("Adjust with --n-paths, --seed, --device ('cpu'/'cuda'); see --help.\n")
 
     pricer = MCPricer(**mkt_cond, **mc_spec)
     rows = []
@@ -197,28 +266,53 @@ def _p2(parser: ArgumentParser):
 
 
 def main():
-    parser = ArgumentParser()
+    parser = ArgumentParser(
+        description=(
+            "Reproduce answer tables and save CSVs. With no command, run p1: "
+            "CRR and BBSR at even step counts. Run p2 explicitly for Monte Carlo."
+        ),
+        formatter_class=RawDescriptionHelpFormatter,
+        epilog="""Examples:
+  python answers.py                         # same as python answers.py p1
+  python answers.py p1 --method BBSR         # even results for BBSR only
+  python answers.py p1 --odd include         # CRR even and odd results
+  python answers.py p1 --odd only            # CRR odd results only
+  python answers.py --odd only               # p1 may be omitted
+  python answers.py p1 --start-exp 3 --max-exp 5 --output-dir /tmp/p1
+  python answers.py p2 --n-paths 4096 --device cpu --seed 42
+
+Use p1 --help or p2 --help for all options and defaults.
+Pass integer counts: --n-paths 1048576, not --n-paths 2**20.
+Relative output directories are resolved from the current working directory.""",
+    )
     subparser = parser.add_subparsers(
         required=False,
         dest='command',
         metavar="{p1, p2}"
     )
 
-    p1_parser = subparser.add_parser("p1", parents=[_get_p1_parser()])
-    p1_parser.set_defaults(func=_p1)
+    p1_options = _get_p1_parser()
+    p1_parser = subparser.add_parser(
+        "p1", parents=[p1_options], description=p1_options.description,
+        help="American call tree prices and Greeks (default command)",
+    )
 
-    p2_parser = subparser.add_parser("p2", parents=[_get_p2_parser()])
-    p2_parser.set_defaults(func=_p2)
+    p2_options = _get_p2_parser()
+    subparser.add_parser(
+        "p2", parents=[p2_options], description=p2_options.description,
+        help="Asian call Monte Carlo comparison with six configurations",
+    )
 
-    args = parser.parse_args()
+    argv = sys.argv[1:]
+    if not argv or (argv[0].startswith("-") and argv[0] not in ("-h", "--help")):
+        argv = ["p1", *argv]
+    args = parser.parse_args(argv)
 
-    if args.command is None:
+    if args.command == "p1":
         print("Problem 1:")
-        _p1(_get_p1_parser())
-        print("\nProblem 2:")
-        _p2(_get_p2_parser())
+        _p1(args, p1_parser)
     else:
-        args.func(parser)
+        _p2(args)
 
 if __name__ == '__main__':
     main()
