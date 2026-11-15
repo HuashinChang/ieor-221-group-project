@@ -1,3 +1,4 @@
+import argparse
 from pathlib import Path
 
 import torch
@@ -7,7 +8,6 @@ from matplotlib.figure import Figure
 from mc_asian import MCPricer
 
 
-TOTAL_PATH_COUNTS = (2**10, 2**12, 2**14, 2**16, 2**18, 2**20)
 STRIKES = {"ITM": 90, "ATM": 100, "OTM": 110}
 VARIANCE_REDUCTION = (
     ("Plain", False, None),
@@ -53,13 +53,27 @@ def plot_variance_reduction(mean_ratios, output_dir):
     print(path)
 
 
-def main(output_dir=OUTPUT_DIR):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--start-exp", type=int, default=10, help="first exponent k")
+    parser.add_argument("--max-exp", type=int, default=15, help="last exponent k")
+    parser.add_argument("--output-dir", type=Path, default=OUTPUT_DIR)
+    parser.add_argument("--device", type=str, 
+                        default="cuda" if torch.cuda.is_available() else "cpu")
+    args = parser.parse_args()
+    if args.start_exp < 1:
+        parser.error("--start-exp must be at least 1")
+    if args.max_exp < args.start_exp:
+        parser.error("--max-exp must be at least --start-exp")
+
+    total_path_counts = [2**n for n in range(args.start_exp, args.max_exp+1)]
+
+    device = torch.device(args.device)
     pricer = MCPricer(
         stock_spot=100, dividend=0.08, vol=0.35, rate=0.05, seed=42, device=device
     )
     dtm = 125
-    output_dir.mkdir(parents=True, exist_ok=True)
+    args.output_dir.mkdir(parents=True, exist_ok=True)
     mean_ratios = {}
 
     for moneyness, strike in STRIKES.items():
@@ -68,7 +82,7 @@ def main(output_dir=OUTPUT_DIR):
         ses_by_policy = {}
         for policy, antithetic, ctrl_var in VARIANCE_REDUCTION:
             ses = []
-            for total_paths in TOTAL_PATH_COUNTS:
+            for total_paths in total_path_counts:
                 # Each antithetic sample uses two paths within the same budget.
                 pricer.n_samples = total_paths // 2 if antithetic else total_paths
                 _, mc_se = pricer.run_mc(
@@ -76,7 +90,7 @@ def main(output_dir=OUTPUT_DIR):
                 )
                 ses.append(mc_se)
             ses_by_policy[policy] = ses
-            ax.loglog(TOTAL_PATH_COUNTS, ses, marker="o", label=policy)
+            ax.loglog(total_path_counts, ses, marker="o", label=policy)
 
         # Square standard-error ratios to compare estimator variances, then average.
         plain_ses = ses_by_policy["Plain"]
@@ -84,22 +98,22 @@ def main(output_dir=OUTPUT_DIR):
             policy: math.fsum(
                 (plain_se / method_se) ** 2
                 for plain_se, method_se in zip(plain_ses, ses)
-            ) / len(TOTAL_PATH_COUNTS)
+            ) / len(total_path_counts)
             for policy, ses in ses_by_policy.items()
         }
 
         ax.set_title(f"{moneyness} Asian call (strike {strike})")
         ax.set_xlabel("Total simulated paths")
-        x_label = [f"2**{str(int(math.log2(N)))}" for N in TOTAL_PATH_COUNTS]
-        ax.set_xticks(ticks=TOTAL_PATH_COUNTS, labels=x_label)
+        x_label = [f"2**{str(int(math.log2(N)))}" for N in total_path_counts]
+        ax.set_xticks(ticks=total_path_counts, labels=x_label)
         ax.set_ylabel("MC price standard error")
         ax.grid(True, which="both", alpha=0.25)
         ax.legend()
-        path = output_dir / f"mc_se_{moneyness.lower()}.png"
+        path = args.output_dir / f"mc_se_{moneyness.lower()}.png"
         figure.savefig(path, dpi=150)
         print(path)
 
-    plot_variance_reduction(mean_ratios, output_dir)
+    plot_variance_reduction(mean_ratios, args.output_dir)
 
 
 if __name__ == "__main__":
