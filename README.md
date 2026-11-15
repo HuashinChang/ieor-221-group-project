@@ -1,10 +1,10 @@
-The main implementations are in `tree_american.py` and `mc_ansian.py`. The dependencies are `numpy`, `torch>=2.0`, `scipy`, `tqdm`.
+The main implementations are in `tree_american.py` and `mc_asian.py`. The dependencies are `numpy`, `torch>=2.0`, `scipy`, and `tqdm`.
 
-Tested with Python 3.14.8 on Linux. Run `pytest` from the project directory to replicate the test results. A CUDA device and `quantlib` are required for tests, and it takes a while to run the full test cases.
+Tested with Python 3.14.8 on Linux. To rerun the tests, run `pytest` from the project directory. The tests additionally require `pytest` and `QuantLib`. MC tests use CUDA when available and otherwise run on CPU. The full test suite may take a while to complete.
 
 ### Reproduce answers
 
-Run from the project directory to reproduce the answer with default parameters:
+Run the following command from the project directory to reproduce the answer tables using the default parameters:
 
 ```bash
 python answers.py
@@ -14,14 +14,14 @@ For MC simulation, CUDA is used when available; otherwise, the script runs on CP
 You can also run a specific problem with your choice of methods and parameters. For example, use
 
 ```bash
-python answers.py p1 --method BBSR --start-exp 11 --max-exp 15
+python answers.py p1 --method BBS --start-exp 11 --max-exp 15
 ```
-to run a BBSR tree at doubling step counts from 2048 to 32768, or use
+to run a BBS tree with step counts doubling from 2048 to 32768, or use
 
 ```bash
-python answers.py p2 --n-paths $((2**24)) --device "cuda"
+python answers.py p2 --n-paths $((2**24)) --device "cuda" --seed 21
 ```
-to run MC with 2**24 paths on CUDA. See `-h` for more information.
+to run MC on CUDA with a random seed of 21 and $2^{24}$ simulated paths. See `python answers.py -h` for more information.
 
 ### Other plots
 `matplotlib` is required. Run `plot_tree_asymptotic.py` for CRR:
@@ -32,24 +32,24 @@ python plot_tree_asymptotic.py
 
 This produces graphs for inspecting the asymptotic behavior of the CRR tree.
 
-Run the file `plot_mc_method_se_compare.py` to generate variance-reduction figures comparing the mc variance from different methods:
+Run `plot_mc_method_se_compare.py` to compare MC standard errors and estimated variance reduction across methods:
 
 ```bash
 python plot_mc_method_se_compare.py
 ```
 
-To inspect deeper into the behavior of the MC standard error calculated from the sampled paths, run 
+To examine the accuracy of the reported MC standard errors, run
 
 ```bash
 python plot_mc_se_ci.py
 ```
 
-This takes a while to run, and it provides a basic statistic check for the approximation quality of the native MC SE to the true MC standard deviation.
+This script may take a while to run. It compares the reported MC standard errors with the empirical standard deviation of price estimates from repeated simulations.
 
-To see how the result of MC estimator changes with respect to number of samples, run
+To see how the MC price estimates and confidence intervals change as the number of simulated paths increases, run
 
 ```bash
 python plot_mc_asymptotic.py
 ```
 
-All of above script can be adjust using different arguments. See `-h` for more details. Figures are saved in `plots/`, and CSV results are saved in `csv/`. 
+All of the above scripts accept command-line options. Run `python <script_name>.py -h` for details. By default, figures are saved in `plots/`, and any CSV outputs are saved in `csv/`.
