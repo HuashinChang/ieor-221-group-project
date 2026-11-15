@@ -117,7 +117,7 @@ def _export_results(rows, method, label, args, ci):
     stability_ax.set_ylabel("Sample SD of native SE / mean native SE")
     stability_ax.grid(True, which="both", alpha=0.25)
     stability_ax.legend()
-    png_path = args.output_dir / f"mc_se_ci_0{str(100*ci)[2:]}_{method}.png"
+    png_path = args.output_dir / f"mc_se_ci_0{str(100*ci)}_{method}.png"
     figure.savefig(png_path, dpi=150)
     print(csv_path)
     print(png_path)
