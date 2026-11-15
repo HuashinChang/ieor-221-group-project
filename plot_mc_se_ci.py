@@ -65,7 +65,7 @@ def _estimate_ratio(pricer, seeds, antithetic, ctrl_var, ci):
 def _export_results(rows, method, label, args, ci):
     args.output_dir.mkdir(parents=True, exist_ok=True)
     args.csv_dir.mkdir(parents=True, exist_ok=True)
-    csv_path = args.csv_dir / f"mc_se_ci_0{str(100*ci)[2:]}_{method}.csv"
+    csv_path = args.csv_dir / f"mc_se_ci_0{100*ci:g}_{method}.csv"
     with csv_path.open("w", newline="") as output:
         writer = csv.DictWriter(output, fieldnames=list(rows[0]))
         writer.writeheader()
@@ -117,7 +117,7 @@ def _export_results(rows, method, label, args, ci):
     stability_ax.set_ylabel("Sample SD of native SE / mean native SE")
     stability_ax.grid(True, which="both", alpha=0.25)
     stability_ax.legend()
-    png_path = args.output_dir / f"mc_se_ci_0{str(100*ci)}_{method}.png"
+    png_path = args.output_dir / f"mc_se_ci_0{100*ci:g}_{method}.png"
     figure.savefig(png_path, dpi=150)
     print(csv_path)
     print(png_path)
