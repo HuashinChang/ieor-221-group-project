@@ -23,6 +23,10 @@ def crr_american_call(
     up_factor = np.exp(vol * np.sqrt(dt))
     down_factor = 1 / up_factor
 
+    ntrl_incr = np.exp((rate - dividend) * dt)
+    if down_factor > ntrl_incr or ntrl_incr > up_factor:
+        raise RuntimeError("Tree model violates arbitrage bounds.")
+
     up_prob = ((np.exp((rate - dividend) * dt) - down_factor) 
         / (up_factor - down_factor))
     down_prob = 1 - up_prob
