@@ -35,29 +35,21 @@ First notice that for a payoff with enough smoothness, the price $V_N$ computed 
 \end{equation}
 where $C$ is a constant and $V$ is the true price of the option. In this case, if we let 
 \[
-    D_N = V_N - V = \frac{C}{N} + o(N^{-1}),
+    D_N = V_{2N} - V_N = -\frac{C}{2N} + o(N^{-1}),
 \]
 then
 \[
     \lim_{N\to\infty}\frac{D_{2N}}{D_N} = 2 \qquad \lim_{N\to\infty} N\cdot D_N = -\frac{C}{2}
 \]
-However, the payoff of the option is not smooth at the strike $K$, and whether $K$ is in the ternimal price grids changes the value of $C$. Since the option is ATM, $K$ is in the ternimal price grids only when $N$ is even. So we have to separate this into cases where $N$ is even and odd. Plotting the graph of $D_{2N} / D_N$ (or $D_{2N+1} / D_N$ if $N$ is odd) and $N D_N$, we have the following.
+However, the payoff of the option is not smooth at the strike $K$, and whether $K$ is in the ternimal price grids changes the value of $C$. Since the option is ATM, $K$ is in the ternimal price grids only when $N$ is even. So we have to separate this into cases where $N$ is even or odd. Plotting the graph of $D_{2N} / D_N$ (replace $2N$ by $2N+1$ in above formulas if $N$ is odd) and $N D_N$, we have the following.
 \begin{center}
-    \includegraphics[width=\textwidth]{plots/crr_asymptotic_price.png}
+    \includegraphics[width=\textwidth]{crr_asymptotic_price.png}
 \end{center}
-We can see that $V_N$ does have a similar asymptotic behavior as the smooth case for even and odd $N$, respectively, with $C_{even} \approx -3.52$ and $C_{odd} \approx 1.74$. Hence the error of the result at 32768 steps is approximately $-0.000107$, and the true price should be approximately $21.1253$.\\
-\indent For the delta, gamma, and theta, we see from the following graphs that a similar asymptotic behavior as (\ref{CRR_asymptotic}) is satisfied:
-\begin{center}
-    \includegraphics[width=\textwidth]{plots/crr_asymptotic_delta.png}
-\end{center}
-\begin{center}
-    \includegraphics[width=\textwidth]{plots/crr_asymptotic_gamma.png}
-\end{center}
-\begin{center}
-    \includegraphics[width=\textwidth]{plots/crr_asymptotic_theta.png}
-\end{center}
-Using a similar error analysis, we have delta, gamma, and theta are approximately 0.5217, 0.0060, and -1.0714, respectively.\\
-Finally, for vega and rho, we need to take acount the effect of the bump size $h$, which makes
+We can see that $V_N$ does follow a similar asymptotic behavior as (\ref{CRR_asymptotic}) for even and odd $N$, respectively, with $C_{even} \approx -3.52$ and $C_{odd} \approx 1.74$. Hence the error of the result at 32768 steps is approximately $-0.000107$, and the true price should be approximately $21.1253$.\\
+
+\indent For the delta, gamma, and theta, we use the same error analysis to see that a similar asymptotic behavior as (\ref{CRR_asymptotic}) is satisfied, and get that delta, gamma, and theta are approximately 0.5217, 0.0060, and -1.0714, respectively.\\
+
+\indent Finally, for vega and rho, we need to take acount the effect of the bump size $h$, which makes the analysis more complicated. From the tables, we can see that the accuracy for these two greeks are not enough for 4 decimal places.\\
 
 We also use a BBSR tree to give another estimation of the price and greeks, which shows a better convergance behavior:
 
@@ -96,9 +88,7 @@ which are the ternimal stock price and the price of corresponding geometric Asia
 \end{tabular}
 \end{center}
 
-\noindent Each method uses $2^{20}$ simulated paths, the fixed seed $0$, and is computed on CUDA.
-For antithetic methods, these paths form $2^{19}$ pairs. 
-The price of the vanilla call option with the same strike and maturity is $8.8249$. 
-
-
+\noindent Each method uses $2^{20}$ simulated paths, the fixed seed $0$, and is computed on CUDA. For antithetic methods, these paths form $2^{19}$ pairs. Using the result from CV with geometric asian option, we have the 95\% CI is [5.1978, 5.1992]. When rounding to 2 decimal places, the price is approximately 5.20.\\
+ 
+The price of the vanilla call option with the same strike and maturity is $8.8249$. The reason why it's higher that the price of the Asian optnio is that the average of prices have a lower variance than that of the ternimal stock price. Although $q > r$ makes the expected value of the average of prices slightly higher that than that of the ternimal price, its effect on the option price is relative small compare to the effect of the difference of variance, hence gives a lower price for Asian option. 
 \end{document}
