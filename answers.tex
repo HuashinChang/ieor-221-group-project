@@ -7,8 +7,7 @@
 
 \begin{document}
 \begin{center}
-    {\large\textbf{IEOR 221 Assignment 9}}\\
-    Group members: Haotian Lan, Hua-Shin Chang, Jiaming Camuseau
+    {\large\textbf{IEOR 221 Assignment 9}}
 \end{center}
 
 \noindent\textbf{1.} The following are the results from a CRR tree with different numbers of steps. Vega and rho are computed by central finite differences with absolute bumps of $10^{-4}$.
@@ -89,7 +88,7 @@ For the control variate method, we use two control variates: the terminal stock 
 \end{tabular}
 \end{center}
 
-\noindent Each method uses $2^{20}$ simulated paths and a fixed random seed of $0$. All simulations are run on a GPU using CUDA. For the antithetic methods, the paths form $2^{19}$ pairs. Using the geometric Asian call as a control variate, we obtain a 95\% confidence interval of [5.1978, 5.1992]. The estimated price rounded to two decimal places is 5.20.\\
- 
-The price of the vanilla call option with the same strike and maturity is $8.8249$, which is higher than the price of the Asian option. The average stock price has a lower variance than the terminal stock price. Although $q > r$ makes the expected average stock price slightly higher than the expected terminal stock price, this effect is relatively small compared with the effect of the reduction in variance. The Asian option therefore has a lower price in this case.
+\noindent Each method uses $2^{20}$ simulated paths and a fixed random seed of $0$. All simulations are run on a GPU using CUDA. For the antithetic methods, the paths form $2^{19}$ pairs. \\
+
+The price of the vanilla call option with the same strike and maturity is $8.8249$, which is higher than the price of the Asian option. The variance of the average stock prices is roughly one-third of variance of the terminal stock price in this setting. Although $q\geq r$ makes the risk-neutral expected average stock price slightly higher than the expected terminal stock price, this effect is relatively small compared with the effect of the reduction in variance. The Asian option therefore has a lower price in this case.
 \end{document}
